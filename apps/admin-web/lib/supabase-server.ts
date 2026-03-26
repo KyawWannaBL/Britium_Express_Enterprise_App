@@ -1,36 +1,22 @@
-import { cookies } from "next/headers";
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
 
-function getEnv(name: string, fallback?: string) {
-  const value = process.env[name] || (fallback ? process.env[fallback] : undefined);
-  if (!value) throw new Error(`${name} is missing.`);
-  return value;
-}
-
+// createServerSupabaseClient အမည်ဖြင့် export လုပ်ပါ
 export async function createServerSupabaseClient() {
-  const cookieStore = await cookies();
-
+  const cookieStore = await cookies()
   return createServerClient(
-    getEnv("NEXT_PUBLIC_SUPABASE_URL", "VITE_SUPABASE_URL"),
-    getEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "VITE_SUPABASE_ANON_KEY"),
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll() {
-          return cookieStore.getAll().map((cookie) => ({
-            name: cookie.name,
-            value: cookie.value
-          }));
-        },
-        setAll(cookiesToSet: any[]) {
+        getAll() { return cookieStore.getAll() },
+        setAll(cookiesToSet) {
           try {
-            cookiesToSet.forEach(({ name, value, options }: { name: string; value: string; options?: CookieOptions }) => {
-              cookieStore.set(name, value, options);
-            });
-          } catch {
-            // Server Components may not be able to set cookies; middleware will refresh the session.
-          }
-        }
-      }
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options))
+          } catch {}
+        },
+      },
     }
-  );
+  )
 }

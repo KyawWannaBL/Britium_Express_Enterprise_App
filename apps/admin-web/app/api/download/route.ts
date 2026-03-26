@@ -1,28 +1,12 @@
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
-import { NextResponse } from 'next/server'
-import { type ResponseCookie } from 'next/dist/compiled/@edge-runtime/cookies'
+import { NextResponse } from 'next/server';
+import { createServerSupabaseClient } from '@/lib/supabase-server';
 
 export async function GET() {
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() { return cookieStore.getAll() },
-        setAll(cookiesToSet: ResponseCookie[]) { 
-          cookiesToSet.forEach(({ name, value, ...options }) => 
-            cookieStore.set(name, value, options)) 
-        },
-      },
-    }
-  );
-
+  const supabase = await createServerSupabaseClient();
   const { data: { session } } = await supabase.auth.getSession();
-  if (!session) return new NextResponse("Unauthorized", { status: 401 });
 
-  // Redirect to the signed APK URL in Supabase Storage
-  const apkUrl = "https://your-project.supabase.co/storage/v1/object/public/builds/britium-enterprise.apk";
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const apkUrl = "https://dltavabvjwocknkyvwgz.supabase.co/storage/v1/object/public/builds/britium-enterprise.apk";
   return NextResponse.redirect(apkUrl);
 }
