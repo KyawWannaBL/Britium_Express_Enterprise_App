@@ -1,0 +1,29 @@
+=== JAVA ===
+JAVA_HOME=/c/Program Files/Eclipse Adoptium/jdk-17.0.17.10-hotspot
+openjdk version "17.0.17" 2025-10-21
+OpenJDK Runtime Environment Temurin-17.0.17+10 (build 17.0.17+10)
+OpenJDK 64-Bit Server VM Temurin-17.0.17+10 (build 17.0.17+10, mixed mode, sharing)
+javac 17.0.17
+
+=== NODE / NPM ===
+stdout is not a tty
+11.10.1
+
+=== EXPO ===
+55.0.18
+
+=== ADB ===
+Android Debug Bridge version 1.0.41
+Version 36.0.2-14143358
+Installed as C:\Users\Administrator.DESKTOP-HJREAI3\AppData\Local\Android\Sdk\platform-tools\adb.exe
+Running on Windows 10.0.26200
+
+=== EMULATOR ===
+Medium_Phone
+Medium_Phone_API_36.1
+
+=== ROOT PACKAGE ===
+root package.json exists
+
+=== CUSTOMER PACKAGE ===
+customer-mobile package.json exists

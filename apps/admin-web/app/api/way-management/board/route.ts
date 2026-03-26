@@ -1,0 +1,22 @@
+
+import { NextRequest, NextResponse } from "next/server";
+import { requireOpsAccess } from "../../../../lib/api-guard";
+import { getWayManagementBoard } from "../../../../lib/way-management";
+
+export async function GET(request: NextRequest) {
+  const access = await requireOpsAccess(request, ["admin", "dispatcher", "ops", "branch_manager", "finance"], ["admin", "dispatcher", "ops", "branch_manager", "finance"]);
+  if (access instanceof NextResponse) return access;
+
+  const requestedBranch = request.nextUrl.searchParams.get("branch");
+  const branchCode = requestedBranch || access.branchCode || null;
+  const board = await getWayManagementBoard(branchCode);
+
+  return NextResponse.json({
+    ...board,
+    operator: {
+      fullName: access.fullName,
+      role: access.role,
+      branchCode: access.branchCode
+    }
+  });
+}

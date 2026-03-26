@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@britium/shared": ["../../packages/shared/src/index.ts"]
+    }
+  },
+  "include": ["app/**/*.ts", "app/**/*.tsx"]
+}
