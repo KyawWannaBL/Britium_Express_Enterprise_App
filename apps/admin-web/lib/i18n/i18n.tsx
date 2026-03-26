@@ -21,6 +21,9 @@ i18n
     backend: {
       loadPath: '/locales/{{lng}}/{{ns}}.json',
     },
+// Client-side provider ကို export လုပ်ပေးရန်လိုအပ်သည်
+export function LanguageProvider({ children }: { children: React.ReactNode }) {
+  return <>{children}</>;
+}
   });
-
 export default i18n;
