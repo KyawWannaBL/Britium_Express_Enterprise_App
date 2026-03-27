@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 
+// All routes including root "/" are now protected to force redirect to sign-in
 const protectedPrefixes = [
+  "/",                     // ADDED: Force authentication on the landing page
   "/create-delivery", 
   "/way-management", 
   "/financial-reports", 
@@ -10,26 +12,17 @@ const protectedPrefixes = [
   "/print/waybill"
 ];
 
-const authPrefixes = [
-  "/auth/sign-in", 
-  "/auth/callback", 
-  "/auth/must-change-password"
-];
-
 const mustChangeAllowedPrefixes = ["/auth/must-change-password", "/auth/callback"];
 
-/**
- * Next.js 16 Proxy Convention
- * This function handles authentication redirection and session management.
- */
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // 1. Static files နှင့် Auth bypass logic
+  // 1. Static files နှင့် Auth pages Bypass logic
   if (
     process.env.BRITIUM_DISABLE_AUTH === "1" ||
     pathname.startsWith("/_next") ||
-    pathname.startsWith("/favicon")
+    pathname.startsWith("/favicon") ||
+    pathname.startsWith("/auth") // auth pages ကို redirect loop မဖြစ်စေရန် bypass လုပ်ရပါမည်
   ) {
     return NextResponse.next();
   }
@@ -39,13 +32,12 @@ export async function proxy(request: NextRequest) {
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseKey) {
-    console.error("Critical Error: Missing Supabase Credentials.");
     return NextResponse.next();
   }
 
   let response = NextResponse.next({ request });
 
-  // 3. Initialize Supabase Server Client with Explicit Types
+  // 3. Initialize Supabase Server Client
   const supabase = createServerClient(supabaseUrl, supabaseKey, {
     cookies: {
       getAll() {
@@ -54,7 +46,6 @@ export async function proxy(request: NextRequest) {
           value: cookie.value,
         }));
       },
-      // FIXED: Added explicit type for cookiesToSet to resolve Vercel build error
       setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
         cookiesToSet.forEach(({ name, value, options }) => {
           response.cookies.set(name, value, options);
@@ -66,36 +57,41 @@ export async function proxy(request: NextRequest) {
   // 4. Get Current Authenticated User
   const { data: { user } } = await supabase.auth.getUser();
 
-  const isProtected = protectedPrefixes.some((prefix) => pathname.startsWith(prefix));
+  // 5. Logic to determine if current path needs protection
+  const isProtected = protectedPrefixes.some((prefix) => 
+    pathname === prefix || pathname.startsWith(prefix)
+  );
 
-  // 5. Unauthenticated User trying to access protected routes
+  // 6. Unauthenticated User logic: Force Redirect to Sign-In
   if (!user && isProtected) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/auth/sign-in";
-    redirectUrl.searchParams.set("next", pathname);
+    // root page မဟုတ်လျှင် 'next' parameter ထည့်ပေးမည်
+    if (pathname !== "/") {
+      redirectUrl.searchParams.set("next", pathname);
+    }
     return NextResponse.redirect(redirectUrl);
   }
 
-  // 6. Authenticated User Logic
+  // 7. Authenticated User Logic (Password Change & Auto-redirect from login)
   if (user) {
+    // API Check for password change status
     const profileResponse = await fetch(new URL("/api/auth/state", request.url), {
       headers: { cookie: request.headers.get("cookie") ?? "" },
     });
 
     if (profileResponse.ok) {
       const state = await profileResponse.json();
-      
       const needsPasswordChange = state?.mustChangePassword;
       const onRestrictedRoute = !mustChangeAllowedPrefixes.some((p) => pathname.startsWith(p));
 
       if (needsPasswordChange && onRestrictedRoute) {
-        const redirectUrl = request.nextUrl.clone();
-        redirectUrl.pathname = "/auth/must-change-password";
-        return NextResponse.redirect(redirectUrl);
+        return NextResponse.redirect(new URL("/auth/must-change-password", request.url));
       }
     }
 
-    if (pathname === "/auth/sign-in") {
+    // Login page သို့ ပြန်သွားပါက Dashboard သို့ ပြန်ပို့ပေးရန်
+    if (pathname === "/auth/sign-in" || pathname === "/") {
       return NextResponse.redirect(new URL("/create-delivery", request.url));
     }
   }
