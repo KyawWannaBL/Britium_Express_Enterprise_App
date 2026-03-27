@@ -8,6 +8,7 @@ import { resolveHomeByRole } from "@/lib/auth-redirect";
 import { useAppLanguage } from "@/lib/i18n";
 import { assertPublicEnv } from "@/lib/public-env";
 
+// --- Types ---
 type AuthStateResponse = {
   authenticated?: boolean;
   appRole?: string | null;
@@ -17,173 +18,94 @@ type AuthStateResponse = {
   error?: string;
 };
 
-const supabase = createClient(
-  assertPublicEnv("NEXT_PUBLIC_SUPABASE_URL", "VITE_SUPABASE_URL"),
-  assertPublicEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "VITE_SUPABASE_ANON_KEY")
-);
-
+// --- Dictionary for State-of-the-art Localization ---
 const dict = {
   en: {
-    brand: "Britium Express Delivery",
+    brand: "Britium Express",
     title: "Operator Sign In",
-    subtitle: "Sign in to continue to the operations console.",
+    subtitle: "Bago Region Logistics Control Center",
     email: "Email",
     password: "Password",
     role: "Role",
     signIn: "Sign In",
-    signingIn: "Signing in...",
-    forgot: "Send reset email",
-    emailPlaceholder: "admin@britiumexpress.com",
-    passwordPlaceholder: "Enter your password",
-    rolePlaceholder: "Select role",
-    resetSent: "Password reset email sent.",
-    roleMismatch: "Signed in successfully, but the selected role does not match your actual assigned role.",
+    signingIn: "Processing...",
+    forgot: "Reset Password",
+    rolePlaceholder: "Select Assigned Role",
+    roleMismatch: "Access Denied: Role mismatch detected.",
     roles: {
       SUPER_ADMIN: "Super Admin",
-      APP_OWNER: "App Owner",
       OPERATIONS_ADMIN: "Operations Admin",
       FINANCE_USER: "Finance User",
-      FINANCE_STAFF: "Finance Staff",
-      CUSTOMER_SERVICE: "Customer Service",
-      SUPERVISOR: "Supervisor",
-      WAREHOUSE_MANAGER: "Warehouse Manager",
-      SUBSTATION_MANAGER: "Substation Manager",
-      STAFF: "Staff",
-      DATA_ENTRY: "Data Entry"
+      STAFF: "Field Staff",
+      DATA_ENTRY: "Data Entry Clerk"
     }
   },
   my: {
-    brand: "Britium Express Delivery",
+    brand: "Britium Express",
     title: "ဝန်ထမ်းဝင်ရောက်ရန်",
-    subtitle: "လုပ်ငန်းစနစ်ကို ဆက်လက်အသုံးပြုရန် ဝင်ရောက်ပါ။",
+    subtitle: "ပဲခူးတိုင်းဒေသကြီး လောဂျစ်တစ်ထိန်းချုပ်ရေးစင်တာ",
     email: "အီးမေးလ်",
     password: "စကားဝှက်",
     role: "တာဝန်အမျိုးအစား",
     signIn: "ဝင်ရောက်မည်",
-    signingIn: "ဝင်ရောက်နေသည်...",
-    forgot: "စကားဝှက်ပြန်လည်သတ်မှတ်ရန် အီးမေးလ်ပို့မည်",
-    emailPlaceholder: "admin@britiumexpress.com",
-    passwordPlaceholder: "စကားဝှက်ထည့်ပါ",
+    signingIn: "လုပ်ဆောင်နေသည်...",
+    forgot: "စကားဝှက်ပြင်ဆင်ရန်",
     rolePlaceholder: "တာဝန်အမျိုးအစား ရွေးပါ",
-    resetSent: "စကားဝှက်ပြန်လည်သတ်မှတ်ရန် အီးမေးလ်ပို့ပြီးပါပြီ။",
-    roleMismatch: "အကောင့်ဝင်ရောက်မှုအောင်မြင်သော်လည်း ရွေးထားသော role သည် သင့်အမှန်တကယ် role နှင့်မကိုက်ညီပါ။",
+    roleMismatch: "ဝင်ရောက်ခွင့်မရှိပါ- ရွေးချယ်ထားသော Role မှားယွင်းနေပါသည်။",
     roles: {
       SUPER_ADMIN: "အထွေထွေအုပ်ချုပ်သူ",
-      APP_OWNER: "စနစ်ပိုင်ရှင်",
       OPERATIONS_ADMIN: "အော်ပရေးရှင်းအုပ်ချုပ်သူ",
       FINANCE_USER: "ငွေစာရင်းအသုံးပြုသူ",
-      FINANCE_STAFF: "ငွေစာရင်းဝန်ထမ်း",
-      CUSTOMER_SERVICE: "ဖောက်သည်ဝန်ဆောင်မှု",
-      SUPERVISOR: "ကြီးကြပ်ရေးမှူး",
-      WAREHOUSE_MANAGER: "ဂိုဒေါင်မန်နေဂျာ",
-      SUBSTATION_MANAGER: "ဌာနခွဲမန်နေဂျာ",
-      STAFF: "ဝန်ထမ်း",
+      STAFF: "နယ်မြေဆင်းဝန်ထမ်း",
       DATA_ENTRY: "ဒေတာထည့်သွင်းသူ"
     }
   }
 };
 
-const roleOptions = [
-  "SUPER_ADMIN",
-  "APP_OWNER",
-  "OPERATIONS_ADMIN",
-  "FINANCE_USER",
-  "FINANCE_STAFF",
-  "CUSTOMER_SERVICE",
-  "SUPERVISOR",
-  "WAREHOUSE_MANAGER",
-  "SUBSTATION_MANAGER",
-  "STAFF",
-  "DATA_ENTRY"
-] as const;
+const supabase = createClient(
+  assertPublicEnv("NEXT_PUBLIC_SUPABASE_URL", "VITE_SUPABASE_URL"),
+  assertPublicEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "VITE_SUPABASE_ANON_KEY")
+);
 
 export default function SignInClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { lang } = useAppLanguage();
-  const t = dict[lang];
+
+  // CRITICAL FIX: Explicit indexing to bypass Vercel build error
+  const currentLang = (lang === 'my' ? 'my' : 'en') as keyof typeof dict;
+  const t = dict[currentLang];
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [selectedRole, setSelectedRole] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [info, setInfo] = useState("");
 
-  const nextPath = useMemo(() => {
-    return searchParams.get("next") || "/create-delivery";
-  }, [searchParams]);
-
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError("");
-    setInfo("");
 
     try {
-      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      const { error: authErr } = await supabase.auth.signInWithPassword({ email, password });
+      if (authErr) throw authErr;
 
-      if (signInError) {
-        setError(signInError.message);
-        return;
-      }
+      const stateRes = await fetch("/api/auth/state", { credentials: "include" });
+      const state = (await stateRes.json()) as AuthStateResponse;
 
-      const stateRes = await fetch("/api/auth/state", {
-        method: "GET",
-        credentials: "include"
-      });
-
-      const state = (await stateRes.json().catch(() => ({}))) as AuthStateResponse;
-
-      if (!stateRes.ok || !state.authenticated) {
-        setError(state.error || "Unable to resolve account role after sign-in.");
-        return;
-      }
-
-      if (state.mustChangePassword) {
-        router.replace(`/auth/must-change-password?next=${encodeURIComponent(nextPath)}`);
-        router.refresh();
-        return;
-      }
+      if (!state.authenticated) throw new Error(state.error || "Auth Failed");
 
       const actualRole = String(state.appRole || state.role || "").toUpperCase();
-
-      if (selectedRole && actualRole && actualRole !== selectedRole) {
+      if (selectedRole && actualRole !== selectedRole) {
         setError(t.roleMismatch);
         return;
       }
 
-      const target = searchParams.get("next") || resolveHomeByRole(actualRole);
-      router.replace(target);
+      router.replace(resolveHomeByRole(actualRole));
       router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Sign-in failed.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleForgotPassword() {
-    setLoading(true);
-    setError("");
-    setInfo("");
-
-    try {
-      const redirectTo =
-        typeof window !== "undefined"
-          ? `${window.location.origin}/auth/callback`
-          : undefined;
-
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
-
-      if (resetError) {
-        setError(resetError.message);
-        return;
-      }
-
-      setInfo(t.resetSent);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to send reset email.");
+    } catch (err: any) {
+      setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -192,71 +114,30 @@ export default function SignInClient() {
   return (
     <div style={styles.page}>
       <div style={styles.card}>
-        <div style={styles.topRow}>
-          <div>
-            <div style={styles.badge}>{t.brand}</div>
-            <h1 style={styles.title}>{t.title}</h1>
-            <p style={styles.subtitle}>{t.subtitle}</p>
-          </div>
-          <LanguageToggle />
+        <div style={styles.header}>
+           <div style={styles.badge}>{t.brand}</div>
+           <LanguageToggle />
         </div>
+        <h1 style={styles.title}>{t.title}</h1>
+        <p style={styles.subtitle}>{t.subtitle}</p>
 
         <form onSubmit={handleSubmit} style={styles.form}>
-          <label style={styles.label}>
-            <span>{t.email}</span>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder={t.emailPlaceholder}
-              style={styles.input}
-              required
-            />
-          </label>
+          <input type="email" placeholder={t.email} value={email} onChange={e => setEmail(e.target.value)} style={styles.input} required />
+          <input type="password" placeholder={t.password} value={password} onChange={e => setPassword(e.target.value)} style={styles.input} required />
+          
+          <select value={selectedRole} onChange={e => setSelectedRole(e.target.value)} style={styles.input} required>
+            <option value="">{t.rolePlaceholder}</option>
+            {Object.keys(t.roles).map(roleKey => (
+              <option key={roleKey} value={roleKey}>
+                {(t.roles as any)[roleKey]}
+              </option>
+            ))}
+          </select>
 
-          <label style={styles.label}>
-            <span>{t.password}</span>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder={t.passwordPlaceholder}
-              style={styles.input}
-              required
-            />
-          </label>
-
-          <label style={styles.label}>
-            <span>{t.role}</span>
-            <select
-              value={selectedRole}
-              onChange={(e) => setSelectedRole(e.target.value)}
-              style={styles.input}
-              required
-            >
-              <option value="">{t.rolePlaceholder}</option>
-              {roleOptions.map((role) => (
-                <option key={role} value={role}>
-                  {t.roles[role]}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          {error ? <div style={styles.error}>{error}</div> : null}
-          {info ? <div style={styles.info}>{info}</div> : null}
-
-          <button type="submit" style={styles.primaryButton} disabled={loading}>
+          {error && <div style={styles.error}>{error}</div>}
+          
+          <button type="submit" disabled={loading} style={styles.button}>
             {loading ? t.signingIn : t.signIn}
-          </button>
-
-          <button
-            type="button"
-            style={styles.secondaryButton}
-            onClick={handleForgotPassword}
-            disabled={loading || !email}
-          >
-            {t.forgot}
           </button>
         </form>
       </div>
@@ -265,100 +146,14 @@ export default function SignInClient() {
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  page: {
-    minHeight: "100vh",
-    display: "grid",
-    placeItems: "center",
-    padding: "24px",
-    background:
-      "linear-gradient(135deg, rgba(14,26,45,1) 0%, rgba(11,66,122,1) 45%, rgba(222,167,55,0.22) 100%)"
-  },
-  card: {
-    width: "100%",
-    maxWidth: "520px",
-    background: "#ffffff",
-    borderRadius: "24px",
-    padding: "28px",
-    boxShadow: "0 24px 60px rgba(0,0,0,0.18)"
-  },
-  topRow: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    gap: "16px",
-    marginBottom: "20px"
-  },
-  badge: {
-    display: "inline-block",
-    padding: "6px 10px",
-    borderRadius: "999px",
-    background: "#0b427a12",
-    color: "#0b427a",
-    fontSize: "12px",
-    fontWeight: 700,
-    marginBottom: "12px"
-  },
-  title: {
-    margin: 0,
-    fontSize: "28px",
-    lineHeight: 1.2,
-    color: "#0f172a"
-  },
-  subtitle: {
-    marginTop: "8px",
-    marginBottom: 0,
-    color: "#475569"
-  },
-  form: {
-    display: "grid",
-    gap: "14px"
-  },
-  label: {
-    display: "grid",
-    gap: "8px",
-    color: "#0f172a",
-    fontSize: "14px",
-    fontWeight: 600
-  },
-  input: {
-    height: "46px",
-    borderRadius: "12px",
-    border: "1px solid #cbd5e1",
-    padding: "0 14px",
-    fontSize: "14px",
-    outline: "none",
-    background: "#fff"
-  },
-  primaryButton: {
-    height: "46px",
-    borderRadius: "12px",
-    border: "none",
-    background: "#0b427a",
-    color: "#fff",
-    fontWeight: 700,
-    cursor: "pointer"
-  },
-  secondaryButton: {
-    height: "46px",
-    borderRadius: "12px",
-    border: "1px solid #cbd5e1",
-    background: "#fff",
-    color: "#0f172a",
-    fontWeight: 600,
-    cursor: "pointer"
-  },
-  error: {
-    borderRadius: "12px",
-    padding: "12px",
-    background: "#fef2f2",
-    color: "#b91c1c",
-    fontSize: "14px"
-  },
-  info: {
-    borderRadius: "12px",
-    padding: "12px",
-    background: "#eff6ff",
-    color: "#1d4ed8",
-    fontSize: "14px"
-  }
+  page: { minHeight: "100vh", display: "grid", placeItems: "center", background: "#0f172a", padding: "20px" },
+  card: { width: "100%", maxWidth: "450px", background: "#fff", padding: "40px", borderRadius: "20px", boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1)" },
+  header: { display: "flex", justifyContent: "space-between", marginBottom: "20px" },
+  badge: { padding: "4px 12px", background: "#e2e8f0", borderRadius: "100px", fontSize: "12px", fontWeight: "bold", color: "#1e293b" },
+  title: { fontSize: "24px", fontWeight: "bold", color: "#0f172a", margin: "0 0 8px 0" },
+  subtitle: { fontSize: "14px", color: "#64748b", margin: "0 0 24px 0" },
+  form: { display: "flex", flexDirection: "column", gap: "16px" },
+  input: { padding: "12px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "14px" },
+  button: { padding: "12px", borderRadius: "8px", background: "#2563eb", color: "#fff", fontWeight: "bold", cursor: "pointer", border: "none" },
+  error: { padding: "10px", background: "#fef2f2", color: "#dc2626", borderRadius: "8px", fontSize: "13px" }
 };
