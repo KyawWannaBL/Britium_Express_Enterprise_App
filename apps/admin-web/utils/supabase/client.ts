@@ -1,19 +1,11 @@
 import { createBrowserClient } from '@supabase/ssr'
 
 export function createClient() {
-  // 1. Get the variables (allow them to be undefined without instantly crashing)
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  // HARDCODE the fallback directly into the client
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://dltavabvjwocknkyvwgz.supabase.co';
+  
+  // Replace the string below with your ACTUAL long Anon Key starting with eyJ...
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRsdGF2YWJ2andvY2tua3l2d2d6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzExMTMxOTQsImV4cCI6MjA4NjY4OTE5NH0.7-9BK6L9dpCYIB-pp1WOeQxCI1DVxnSykoTRXNUHYIo';
 
-  // 2. Fail-Safe: Instead of throwing a fatal error that breaks the website, 
-  // we log a warning and pass empty strings so the UI can still load.
-  if (!supabaseUrl || !supabaseKey) {
-    console.warn("⚠️ Client-side Supabase keys are missing. Check Vercel Environment Variables or Monorepo Root Directory settings.");
-  }
-
-  // 3. Initialize the client safely
-  return createBrowserClient(
-    supabaseUrl || '', 
-    supabaseKey || ''
-  );
+  return createBrowserClient(supabaseUrl, supabaseKey);
 }

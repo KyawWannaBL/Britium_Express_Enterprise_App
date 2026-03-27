@@ -1,0 +1,90 @@
+project_id = "britium-express-platform"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 17
+
+[db.migrations]
+enabled = true
+
+[db.seed]
+enabled = true
+sql_paths = ["./seed.sql"]
+
+[realtime]
+enabled = true
+
+[studio]
+enabled = true
+port = 54323
+api_url = "http://127.0.0.1"
+
+[storage]
+enabled = true
+file_size_limit = "50MiB"
+
+[storage.s3_protocol]
+enabled = true
+
+[auth]
+enabled = true
+site_url = "http://127.0.0.1:3000"
+additional_redirect_urls = ["http://127.0.0.1:3000","http://localhost:3000","https://127.0.0.1:3000"]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+enable_signup = true
+minimum_password_length = 8
+
+[auth.email]
+enable_signup = true
+enable_confirmations = false
+otp_length = 6
+otp_expiry = 3600
+
+[auth.sms]
+enable_signup = false
+enable_confirmations = false
+template = "Your code is {{ .Code }}"
+
+[edge_runtime]
+enabled = true
+policy = "per_worker"
+deno_version = 2
+
+[analytics]
+enabled = true
+port = 54327
+backend = "postgres"
+
+[functions.track-shipment]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/track-shipment/index.ts"
+
+[functions.create-waybill]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/create-waybill/index.ts"
+
+[functions.enterprise-admin]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/enterprise-admin/index.ts"
+
+[functions.shipping-calculator]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/shipping-calculator/index.ts"
+
+[functions.shipment-notifications]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/shipment-notifications/index.ts"
