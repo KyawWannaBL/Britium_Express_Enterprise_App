@@ -3851,6 +3851,7 @@ export type Database = {
           notes: string | null
           nrc_number: string | null
           permissions: string[] | null
+          preferred_language: string | null
           requires_password_change: boolean | null
           role: Database["public"]["Enums"]["app_role"] | null
           role_code: string | null
@@ -3887,6 +3888,7 @@ export type Database = {
           notes?: string | null
           nrc_number?: string | null
           permissions?: string[] | null
+          preferred_language?: string | null
           requires_password_change?: boolean | null
           role?: Database["public"]["Enums"]["app_role"] | null
           role_code?: string | null
@@ -3923,6 +3925,7 @@ export type Database = {
           notes?: string | null
           nrc_number?: string | null
           permissions?: string[] | null
+          preferred_language?: string | null
           requires_password_change?: boolean | null
           role?: Database["public"]["Enums"]["app_role"] | null
           role_code?: string | null
@@ -8215,6 +8218,7 @@ export type Database = {
           notes: string | null
           nrc_number: string | null
           permissions: string[] | null
+          preferred_language: string | null
           requires_password_change: boolean | null
           role: Database["public"]["Enums"]["app_role"] | null
           role_code: string | null
@@ -8288,6 +8292,7 @@ export type Database = {
           notes: string | null
           nrc_number: string | null
           permissions: string[] | null
+          preferred_language: string | null
           requires_password_change: boolean | null
           role: Database["public"]["Enums"]["app_role"] | null
           role_code: string | null
