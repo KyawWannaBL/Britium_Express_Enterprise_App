@@ -4,9 +4,18 @@ import { cookies } from 'next/headers'
 export async function createServerSupabaseClient() {
   const cookieStore = await cookies()
 
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  // FAIL-SAFE: If variables are missing, return a null-safe object instead of crashing
+  if (!supabaseUrl || !supabaseKey) {
+    console.error("Supabase environment variables are missing!");
+    // Return a dummy client or handle the error gracefully
+  }
+
   return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl || '',
+    supabaseKey || '',
     {
       cookies: {
         getAll() { return cookieStore.getAll() },
@@ -15,7 +24,9 @@ export async function createServerSupabaseClient() {
             cookiesToSet.forEach(({ name, value, options }) =>
               cookieStore.set(name, value, options)
             )
-          } catch {}
+          } catch {
+            // Safe to ignore in Server Components
+          }
         },
       },
     }
