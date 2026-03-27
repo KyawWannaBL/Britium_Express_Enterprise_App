@@ -1,19 +1,21 @@
+import { Inter } from "next/font/google";
 import "./globals.css";
-import AdminChrome from "./_components/AdminChrome";
 import { LanguageProvider } from "@/lib/i18n";
 
-export const metadata = {
-  title: "Britium Express Enterprise",
-  description: "Britium Express Delivery operations console"
-};
+// FIXED: Force dynamic rendering to resolve Vercel build timeout
+export const dynamic = "force-dynamic";
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+const inter = Inter({ subsets: ["latin"] });
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="en">
-      <body>
-        <LanguageProvider>
-          <AdminChrome>{children}</AdminChrome>
-        </LanguageProvider>
+      <body className={inter.className}>
+        <LanguageProvider>{children}</LanguageProvider>
       </body>
     </html>
   );
