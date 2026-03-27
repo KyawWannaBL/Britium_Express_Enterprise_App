@@ -7,10 +7,8 @@ export async function createServerSupabaseClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  // FAIL-SAFE: If variables are missing, return a null-safe object instead of crashing
   if (!supabaseUrl || !supabaseKey) {
-    console.error("Supabase environment variables are missing!");
-    // Return a dummy client or handle the error gracefully
+    console.warn("⚠️ Server-side Supabase keys are missing.");
   }
 
   return createServerClient(
@@ -18,14 +16,17 @@ export async function createServerSupabaseClient() {
     supabaseKey || '',
     {
       cookies: {
-        getAll() { return cookieStore.getAll() },
+        getAll() {
+          return cookieStore.getAll()
+        },
         setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
           try {
             cookiesToSet.forEach(({ name, value, options }) =>
               cookieStore.set(name, value, options)
             )
           } catch {
-            // Safe to ignore in Server Components
+            // The `setAll` method was called from a Server Component.
+            // This can be ignored if you have middleware refreshing user sessions.
           }
         },
       },
