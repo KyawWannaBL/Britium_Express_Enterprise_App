@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getOpsIdentity } from "@/lib/api-guard";
 
+// 🚨 CRITICAL FIX: Force Next.js to skip the cache and evaluate this route fresh every single time.
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
   try {
     const identity = await getOpsIdentity(request);

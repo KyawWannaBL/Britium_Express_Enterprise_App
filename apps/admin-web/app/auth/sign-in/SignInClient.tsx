@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
+import { createBrowserClient } from "@supabase/ssr";
 import LanguageToggle from "@/app/_components/LanguageToggle";
 import { resolveHomeByRole } from "@/lib/auth-redirect";
 
@@ -16,21 +16,11 @@ type AuthStateResponse = {
   fullName?: string | null;
 };
 
-function getPublicEnv(name: string, fallback?: string) {
-  const value =
-    (typeof process !== "undefined" ? process.env[name] : undefined) ||
-    (fallback && typeof process !== "undefined" ? process.env[fallback] : undefined);
-
-  if (!value) {
-    throw new Error(`Missing environment variable: ${name}`);
-  }
-
-  return value;
-}
-
-const supabase = createClient(
-  getPublicEnv("NEXT_PUBLIC_SUPABASE_URL", "VITE_SUPABASE_URL"),
-  getPublicEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "VITE_SUPABASE_ANON_KEY")
+// Directly instantiate the browser client using exact string replacements 
+// so the Next.js compiler injects the environment variables correctly.
+const supabase = createBrowserClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
 const copy = {
@@ -196,9 +186,11 @@ export default function SignInClient() {
     setInfo("");
 
     try {
+      // WIRING FIX: Explicitly append ?next=/auth/must-change-password
+      // so the callback route knows exactly where to drop the user off.
       const redirectTo =
         typeof window !== "undefined"
-          ? `${window.location.origin}/auth/callback`
+          ? `${window.location.origin}/auth/callback?next=/auth/must-change-password`
           : undefined;
 
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
@@ -251,7 +243,6 @@ export default function SignInClient() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder={t.passwordPlaceholder}
               style={styles.input}
-              required
             />
           </label>
 
