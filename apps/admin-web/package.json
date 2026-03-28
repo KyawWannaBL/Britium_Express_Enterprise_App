@@ -1,35 +1,22 @@
 {
-  "name": "@britium/admin-web",
+  "name": "britium-express-platform",
   "private": true,
-  "version": "0.1.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
-  },
-  "dependencies": {
-    "@britium/shared": "0.1.0",
-    "@supabase/ssr": "^0.5.2",
-    "@supabase/supabase-js": "^2.45.0",
-    "axios": "^1.13.6",
-    "i18next": "^25.10.9",
-    "i18next-browser-languagedetector": "^8.0.0",
-    "i18next-http-backend": "^3.0.0",
-    "mapbox-gl": "^3.15.0",
-    "next": "16.2.1",
-    "qrcode": "^1.5.4",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0",
-    "react-i18next": "^15.0.0",
-    "server-only": "^0.0.1",
-    "xlsx": "^0.18.5"
+    "lint": "echo \"Add ESLint command per app\"",
+    "typecheck": "echo \"Run typecheck inside each app\""
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
+    "@types/node": "^25.5.0",
     "@types/qrcode": "^1.5.6",
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
-    "typescript": "^5.0.0"
+    "@types/react": "^19.2.14",
+    "supabase": "^2.84.4",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@britium/shared": "file:../../packages/shared"
   }
 }

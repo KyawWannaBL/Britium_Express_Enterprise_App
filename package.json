@@ -1,13 +1,16 @@
 {
   "name": "britium-express-platform",
-  "private": true,
+  "private": "true",
   "workspaces": [
     "apps/*",
     "packages/*"
   ],
   "scripts": {
     "lint": "echo \"Add ESLint command per app\"",
-    "typecheck": "echo \"Run typecheck inside each app\""
+    "typecheck": "echo \"Run typecheck inside each app\"",
+    "dev": "npm run dev --workspace apps/admin-web",
+    "build": "npm run build --workspace apps/admin-web",
+    "start": "npm run start --workspace apps/admin-web"
   },
   "devDependencies": {
     "@types/node": "^25.5.0",
