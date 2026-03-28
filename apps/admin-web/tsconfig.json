@@ -1,11 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": [
-      "dom",
-      "dom.iterable",
-      "es2022"
-    ],
+    "lib": ["dom", "dom.iterable", "es2022"],
     "strict": true,
     "module": "ESNext",
     "moduleResolution": "Bundler",
@@ -14,26 +10,16 @@
     "noEmit": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": [
-        "./*"
-      ],
-      "@britium/shared": [
-        "../../packages/shared/src/index.ts"
-      ],
-      "@britium/shared/*": [
-        "../../packages/shared/src/*"
-      ]
+      "@/*": ["./*"],
+      "@britium/shared": ["../../packages/shared/src/index.ts"],
+      "@britium/shared/*": ["../../packages/shared/src/*"]
     },
     "allowJs": false,
     "resolveJsonModule": true,
     "isolatedModules": true,
     "esModuleInterop": true,
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ],
-    "incremental": true
+    "incremental": true,
+    "plugins": [{ "name": "next" }]
   },
   "include": [
     "next-env.d.ts",
@@ -41,15 +27,12 @@
     "app/**/*.tsx",
     "lib/**/*.ts",
     "lib/**/*.tsx",
-    "components/**/*.ts",
-    "components/**/*.tsx",
+    "types/**/*.d.ts",
     "middleware.ts",
     "proxy.ts",
     "next.config.ts",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts"
   ],
-  "exclude": [
-    "node_modules"
-  ]
+  "exclude": ["node_modules"]
 }

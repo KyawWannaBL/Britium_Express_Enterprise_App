@@ -1,23 +1,30 @@
 "use client";
 
-import { useAppLanguage } from "@/lib/i18n";
+type Props = {
+  value: "en" | "my";
+  onChange: (lang: "en" | "my") => void;
+};
 
-export default function LanguageToggle() {
-  const { lang, setLang } = useAppLanguage();
-
+export default function LanguageToggle({ value, onChange }: Props) {
   return (
     <div style={wrap}>
       <button
         type="button"
-        onClick={() => setLang("en")}
-        style={{ ...btn, ...(lang === "en" ? active : {}) }}
+        onClick={() => onChange("en")}
+        style={{
+          ...btn,
+          ...(value === "en" ? active : {})
+        }}
       >
         EN
       </button>
       <button
         type="button"
-        onClick={() => setLang("my")}
-        style={{ ...btn, ...(lang === "my" ? active : {}) }}
+        onClick={() => onChange("my")}
+        style={{
+          ...btn,
+          ...(value === "my" ? active : {})
+        }}
       >
         မြန်မာ
       </button>
@@ -31,9 +38,8 @@ const wrap: React.CSSProperties = {
   gap: 6,
   padding: 4,
   borderRadius: 999,
-  background: "rgba(255,255,255,0.10)",
-  border: "1px solid rgba(255,255,255,0.14)",
-  backdropFilter: "blur(8px)"
+  background: "rgba(11,66,122,0.08)",
+  border: "1px solid rgba(11,66,122,0.12)"
 };
 
 const btn: React.CSSProperties = {
@@ -43,11 +49,11 @@ const btn: React.CSSProperties = {
   fontSize: 13,
   fontWeight: 700,
   background: "transparent",
-  color: "#ffffff",
+  color: "#0f172a",
   cursor: "pointer"
 };
 
 const active: React.CSSProperties = {
-  background: "#ffffff",
-  color: "#0b427a"
+  background: "#0b427a",
+  color: "#ffffff"
 };

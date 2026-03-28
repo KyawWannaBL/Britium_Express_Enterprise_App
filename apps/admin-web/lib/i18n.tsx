@@ -1,70 +1,59 @@
 "use client";
 
-import i18n from 'i18next';
-import { initReactI18next, useTranslation } from 'react-i18next';
-import LanguageDetector from 'i18next-browser-languagedetector';
-import HttpApi from 'i18next-http-backend';
-import { useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 
-// i18n Initialization
-if (!i18n.isInitialized) {
-  i18n
-    .use(HttpApi)
-    .use(LanguageDetector)
-    .use(initReactI18next)
-    .init({
-      fallbackLng: 'en',
-      supportedLngs: ['en', 'mm'],
-      ns: ['translation'],
-      defaultNS: 'translation',
-      backend: {
-        loadPath: '/locales/{{lng}}/{{ns}}.json',
-      },
-      interpolation: { escapeValue: false },
-      detection: {
-        order: ['querystring', 'cookie', 'localStorage', 'navigator'],
-        caches: ['localStorage', 'cookie'],
-      }
-    });
+export type AppLang = "en" | "my";
+
+type Ctx = {
+  lang: AppLang;
+  setLang: (lang: AppLang) => void;
+  t: (en: string, my?: string) => string;
+};
+
+const LanguageContext = createContext<Ctx | null>(null);
+
+function readInitialLang(): AppLang {
+  if (typeof window === "undefined") return "en";
+  const stored = window.localStorage.getItem("britium_lang");
+  if (stored === "my") return "my";
+  return "en";
 }
 
-/**
- * FIXED: Exporting LanguageProvider for layout.tsx
- * This resolves the "Export LanguageProvider doesn't exist" build error.
- */
-export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [mounted, setMounted] = useState(false);
+export function LanguageProvider({ children }: { children: React.ReactNode }) {
+  const [lang, setLangState] = useState<AppLang>("en");
 
-  // Client-side hydration mismatch ကို ကာကွယ်ရန်
   useEffect(() => {
-    setMounted(true);
+    setLangState(readInitialLang());
   }, []);
 
-  if (!mounted) {
-    return <div style={{ visibility: 'hidden' }}>{children}</div>;
-  }
-
-  return <>{children}</>;
-}
-
-/**
- * Custom hook for components
- */
-export function useAppLanguage() {
-  const { t, i18n: i18nInstance } = useTranslation();
-  
-  const setLang = (newLang: string) => {
-    i18nInstance.changeLanguage(newLang);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('i18nextLng', newLang);
+  const setLang = (next: AppLang) => {
+    setLangState(next);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("britium_lang", next);
+      document.cookie = `britium_lang=${next}; path=/; max-age=31536000; samesite=lax`;
+      document.documentElement.lang = next === "my" ? "my" : "en";
     }
   };
 
-  return {
-    lang: i18nInstance.language,
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      document.documentElement.lang = lang === "my" ? "my" : "en";
+    }
+  }, [lang]);
+
+  const value = useMemo<Ctx>(() => ({
+    lang,
     setLang,
-    t
-  };
+    t: (en: string, my?: string) => (lang === "my" ? (my || en) : en)
+  }), [lang]);
+
+  return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;
 }
 
-export default i18n;
+export function useAppLanguage() {
+  const ctx = useContext(LanguageContext);
+  if (!ctx) {
+    throw new Error("useAppLanguage must be used inside LanguageProvider");
+  }
+  return ctx;
+}
