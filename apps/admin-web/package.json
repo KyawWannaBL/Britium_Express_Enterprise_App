@@ -7,7 +7,10 @@
   ],
   "scripts": {
     "lint": "echo \"Add ESLint command per app\"",
-    "typecheck": "echo \"Run typecheck inside each app\""
+    "typecheck": "echo \"Run typecheck inside each app\"",
+    "build": "next build",
+    "dev": "next dev",
+    "start": "next start"
   },
   "devDependencies": {
     "@types/node": "^25.5.0",
