@@ -16,5 +16,10 @@ body {
   min-height: 100vh;
 }
 
+/* Luxury Terminal Scrollbar */
 ::-webkit-scrollbar { width: 5px; }
-::-webkit-scrollbar-thumb { background: rgba(99, 102, 241, 0.2); border-radius: 10px; }
+::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.02); }
+::-webkit-scrollbar-thumb { 
+  background: rgba(99, 102, 241, 0.3); 
+  border-radius: 10px; 
+}
