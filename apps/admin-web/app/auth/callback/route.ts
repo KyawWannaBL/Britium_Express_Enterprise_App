@@ -5,11 +5,11 @@ import { NextResponse } from 'next/server'
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
-  // If "next" is in the URL, use it; otherwise go to dashboard
   const next = searchParams.get('next') ?? '/dashboard'
 
   if (code) {
-    const cookieStore = cookies()
+    // FIX: cookies() is now asynchronous in Next.js 15/16
+    const cookieStore = await cookies() 
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -27,15 +27,10 @@ export async function GET(request: Request) {
     )
 
     const { error } = await supabase.auth.exchangeCodeForSession(code)
-    
     if (!error) {
-      // If this was a password reset, redirect to the password change page
-      const isRecovery = request.url.includes('type=recovery')
-      const targetPath = isRecovery ? '/auth/must-change-password' : next
-      return NextResponse.redirect(`${origin}${targetPath}`)
+      return NextResponse.redirect(`${origin}${next}`)
     }
   }
 
-  // If anything fails, send to sign-in with an error hint
-  return NextResponse.redirect(`${origin}/auth/sign-in?error=auth_callback_failed`)
+  return NextResponse.redirect(`${origin}/auth/sign-in?error=recovery_failed`)
 }
