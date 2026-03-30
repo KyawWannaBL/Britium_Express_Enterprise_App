@@ -12,14 +12,11 @@ import {
 type Params = { params: Promise<{ operatorId: string }> };
 
 export async function PATCH(request: NextRequest, { params }: Params) {
-  const identity = await requireOpsAccess(
-    request,
-    ["SUPER_ADMIN", "APP_OWNER", "OPERATIONS_ADMIN", "HR_ADMIN"],
-    ["any"]
-  );
+  // 1. Fix: 0 arguments
+  const identity = await requireOpsAccess();
 
-  if (identity instanceof NextResponse) return identity;
-  if (!canManageUsers(identity.appRole)) {
+  // 2. Fix: changed appRole to role
+  if (!canManageUsers(identity.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -30,9 +27,10 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     const appRole = body.app_role ?? body.appRole ?? body.role;
     const normalizedRole = appRole ? normalizeRole(appRole) : undefined;
 
-    if (normalizedRole && !ensureAssignable(identity.appRole, normalizedRole)) {
+    // Fix: changed identity.role to identity.role
+    if (normalizedRole && !ensureAssignable(identity.role, normalizedRole)) {
       return NextResponse.json(
-        { error: `Role ${normalizedRole} cannot be assigned by ${identity.appRole}.` },
+        { error: `Role ${normalizedRole} cannot be assigned by ${identity.role}.` },
         { status: 403 }
       );
     }
@@ -75,7 +73,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
     const supabase = createAdminClient();
     await supabase.from("operator_admin_actions").insert({
-      actor_profile_id: identity.profileId,
+      actor_profile_id: identity.id, // 3. Fix: changed profileId to id
       target_profile_id: operatorId,
       action: "update_operator",
       metadata: {

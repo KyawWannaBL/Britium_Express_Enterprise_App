@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { MetricCard, SectionTitle, Shell, StatusPill } from "../_components/ui";
 import { financialRows } from "../_lib/mock-data";
 import { getFinancialReportData } from "../../lib/data";

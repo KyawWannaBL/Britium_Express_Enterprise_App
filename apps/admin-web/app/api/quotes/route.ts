@@ -4,10 +4,7 @@ import { requireOpsAccess } from "../../../lib/api-guard";
 import { estimateCreateDeliveryQuote } from "../../../lib/create-delivery";
 
 export async function POST(request: NextRequest) {
-  const access = await requireOpsAccess(request);
-  if (access instanceof NextResponse) {
-    return access;
-  }
+  const access = await requireOpsAccess();
 
   const body = await request.json();
 
@@ -15,7 +12,7 @@ export async function POST(request: NextRequest) {
     const quote = estimateCreateDeliveryQuote(body);
     return NextResponse.json({
       ok: true,
-      operator: access.profileId,
+      operator: access.id,
       quote
     });
   } catch (error) {

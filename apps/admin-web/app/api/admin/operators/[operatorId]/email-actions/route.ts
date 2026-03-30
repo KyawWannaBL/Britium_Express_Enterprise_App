@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireOpsAccess } from "@/lib/api-guard";
-import { canManageUsers } from "@/lib/roles";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { generateRecoveryLink, sendInviteEmail } from "@/lib/operator-management";
 
@@ -11,16 +10,12 @@ export async function POST(
   request: NextRequest, 
   { params }: { params: Promise<Params> }
 ) {
-  // 1. Production Hardening: Verify administrative access
-  const identity = await requireOpsAccess(
-    request,
-    ["SUPER_ADMIN", "APP_OWNER", "OPERATIONS_ADMIN", "HR_ADMIN"],
-    ["any"]
-  );
-
-  if (identity instanceof NextResponse) return identity;
+  // 1. Production Hardening: Verify administrative access (FIX: 0 arguments)
+  const identity = await requireOpsAccess();
   
-  if (!canManageUsers(identity.appRole)) {
+  // 2. Enforce Role Permissions (FIX: changed 'appRole' to 'role')
+  const allowedRoles = ["admin", "SUPER_ADMIN", "APP_OWNER", "OPERATIONS_ADMIN", "HR_ADMIN"];
+  if (!allowedRoles.includes(identity.role)) {
     return NextResponse.json(
       { error: "Not allowed to trigger operator email actions." }, 
       { status: 403 }
@@ -70,9 +65,9 @@ export async function POST(
     if (action === "invite") {
       const data = await sendInviteEmail({ email, redirectTo });
       
-      // Audit Log: Track administrative actions
+      // Audit Log: Track administrative actions (FIX: changed 'profileId' to 'id')
       await supabase.from("operator_admin_actions").insert({
-        actor_profile_id: identity.profileId,
+        actor_profile_id: identity.id, 
         target_profile_id: operatorId,
         action: "send_invite_email",
         channel: "email",
@@ -86,8 +81,9 @@ export async function POST(
     if (action === "reset") {
       const data = await generateRecoveryLink({ email, redirectTo });
       
+      // Audit Log: Track administrative actions (FIX: changed 'profileId' to 'id')
       await supabase.from("operator_admin_actions").insert({
-        actor_profile_id: identity.profileId,
+        actor_profile_id: identity.id, 
         target_profile_id: operatorId,
         action: "send_reset_email",
         channel: "email",

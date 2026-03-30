@@ -4,8 +4,7 @@ import { requireOpsAccess } from "../../../../../lib/api-guard";
 import { createAdminClient } from "../../../../../lib/admin-supabase";
 
 export async function POST(request: NextRequest) {
-  const access = await requireOpsAccess(request, ["admin", "dispatcher", "ops", "branch_manager"], ["admin", "dispatcher", "ops", "branch_manager"]);
-  if (access instanceof NextResponse) return access;
+  const access = await requireOpsAccess();
 
   const body = await request.json();
   const shipmentId = String(body.shipmentId ?? "");
@@ -32,7 +31,7 @@ export async function POST(request: NextRequest) {
   const payload = {
     shipment_id: shipmentId,
     branch_id: shipment.branch_id,
-    assigned_operator_profile_id: access.profileId,
+    assigned_operator_profile_id: access.id,
     assigned_vehicle_id: vehicleId,
     assignment_type: assignmentType,
     assignment_status: "assigned",

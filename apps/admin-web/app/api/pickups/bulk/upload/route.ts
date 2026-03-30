@@ -13,10 +13,7 @@ function extensionFor(filename: string) {
 }
 
 export async function POST(request: NextRequest) {
-  const access = await requireOpsAccess(request);
-  if (access instanceof NextResponse) {
-    return access;
-  }
+  const access = await requireOpsAccess();
 
   const formData = await request.formData();
   const file = formData.get("file");
@@ -65,7 +62,7 @@ export async function POST(request: NextRequest) {
     const { data: job, error: jobError } = await supabase
       .from("bulk_upload_jobs")
       .insert({
-        uploaded_by_profile_id: access.legacyProfileId,
+        uploaded_by_profile_id: access.id,
         customer_id: customerId,
         filename: file.name,
         storage_object_path: objectPath,
@@ -105,7 +102,7 @@ export async function POST(request: NextRequest) {
     const response = {
       ok: true,
       operator: access.fullName,
-      authUserId: access.authUserId,
+      authUserId: access.id,
       job: {
         ...job,
         parser_status: workerStatus

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef } from "react";
 import mapboxgl from "mapbox-gl";
+import "mapbox-gl/dist/mapbox-gl.css"; // CRITICAL: Missing this causes the map to look broken
 import { createBrowserSupabaseClient } from "../../lib/supabase-browser";
 
 type LiveUnit = {
@@ -23,6 +24,7 @@ type Branch = {
 };
 
 function readMapboxToken() {
+  // Check common env variable names
   return process.env.NEXT_PUBLIC_MAPBOX_TOKEN || process.env.VITE_MAPBOX_TOKEN || "";
 }
 
@@ -38,124 +40,134 @@ export default function WayOpsMap({
   const markersRef = useRef<Map<string, mapboxgl.Marker>>(new Map());
 
   const token = readMapboxToken();
+
+  // Compute center based on HQ or first available unit
   const initialCenter = useMemo<[number, number]>(() => {
-    if (branch.longitude != null && branch.latitude != null) return [branch.longitude, branch.latitude];
-    const fallback = liveUnits.find((unit) => unit.longitude != null && unit.latitude != null);
-    return fallback ? [fallback.longitude as number, fallback.latitude as number] : [96.1735, 16.8409];
+    if (branch?.longitude != null && branch?.latitude != null) {
+      return [Number(branch.longitude), Number(branch.latitude)];
+    }
+    const fallback = liveUnits.find((u) => u.longitude != null && u.latitude != null);
+    return fallback 
+      ? [Number(fallback.longitude), Number(fallback.latitude)] 
+      : [96.1735, 16.8409]; // Default to Yangon center
   }, [branch, liveUnits]);
 
+  // 1. Map Initialization
   useEffect(() => {
     if (!mapRef.current || !token || mapInstance.current) return;
+
     mapboxgl.accessToken = token;
+    
     const map = new mapboxgl.Map({
       container: mapRef.current,
       style: "mapbox://styles/mapbox/dark-v11",
       center: initialCenter,
-      zoom: 10.5
+      zoom: 11,
+      pitch: 45, // Adds a nice perspective for logistics
     });
 
-    map.addControl(new mapboxgl.NavigationControl({ visualizePitch: true }), "top-right");
+    map.addControl(new mapboxgl.NavigationControl(), "top-right");
     mapInstance.current = map;
 
-    if (branch.longitude != null && branch.latitude != null) {
-      const node = document.createElement("div");
-      node.className = "map-hq-marker";
-      node.innerHTML = `<span>HQ</span>`;
-      new mapboxgl.Marker({ element: node })
+    // Add HQ Marker once
+    if (branch?.longitude != null && branch?.latitude != null) {
+      const hqEl = document.createElement("div");
+      hqEl.className = "map-hq-marker";
+      hqEl.innerHTML = `<div style="background:#0ea5e9; padding:4px 8px; border-radius:4px; color:white; font-weight:bold; border:2px solid white;">HQ</div>`;
+      
+      new mapboxgl.Marker({ element: hqEl })
         .setLngLat([branch.longitude, branch.latitude])
-        .setPopup(new mapboxgl.Popup({ offset: 12 }).setHTML(`<strong>${branch.code ?? "Branch HQ"}</strong>`))
+        .setPopup(new mapboxgl.Popup({ offset: 25 }).setHTML(`<strong>${branch.code || 'Branch HQ'}</strong>`))
         .addTo(map);
     }
 
     return () => {
-      markersRef.current.forEach((marker) => marker.remove());
-      markersRef.current.clear();
       map.remove();
       mapInstance.current = null;
     };
-  }, [branch, initialCenter, token]);
+  }, [token]); // Only run once on token load
 
+  // 2. Dynamic Marker Updates (Rider Positions)
   useEffect(() => {
     const map = mapInstance.current;
     if (!map) return;
 
-    const existing = markersRef.current;
-    const liveIds = new Set(liveUnits.map((unit) => unit.id));
+    const existingMarkers = markersRef.current;
+    const currentUnitIds = new Set(liveUnits.map(u => u.id));
 
-    existing.forEach((marker, id) => {
-      if (!liveIds.has(id)) {
+    // Remove units that are no longer active/in list
+    existingMarkers.forEach((marker, id) => {
+      if (!currentUnitIds.has(id)) {
         marker.remove();
-        existing.delete(id);
+        existingMarkers.delete(id);
       }
     });
 
-    liveUnits.forEach((unit, index) => {
+    // Add or Update markers
+    liveUnits.forEach((unit) => {
       if (unit.longitude == null || unit.latitude == null) return;
 
-      const html = document.createElement("button");
-      html.className = "map-driver-marker";
-      html.innerHTML = `<span class="map-driver-badge">${index + 1}</span><span class="map-driver-label">${unit.code}</span>`;
+      const marker = existingMarkers.get(unit.id);
+      const lngLat: [number, number] = [Number(unit.longitude), Number(unit.latitude)];
 
-      const popup = new mapboxgl.Popup({ offset: 12 }).setHTML(`
-        <div class="map-popup">
-          <strong>${unit.driverName}</strong><br/>
-          ${unit.code} · ${unit.type}<br/>
-          Status: ${unit.status}<br/>
-          Speed: ${unit.speedKph ?? 0} km/h<br/>
-          Last seen: ${unit.lastSeenAt ? new Date(unit.lastSeenAt).toLocaleString() : "—"}
-        </div>
-      `);
-
-      const found = existing.get(unit.id);
-      if (found) {
-        found.setLngLat([unit.longitude, unit.latitude]);
-        found.setPopup(popup);
+      if (marker) {
+        // Smoothly update position if marker exists
+        marker.setLngLat(lngLat);
       } else {
-        const marker = new mapboxgl.Marker({ element: html })
-          .setLngLat([unit.longitude, unit.latitude])
-          .setPopup(popup)
+        // Create new marker
+        const el = document.createElement("div");
+        el.className = "map-driver-marker";
+        el.style.cursor = "pointer";
+        el.innerHTML = `
+          <div style="background:#22c55e; width:12px; height:12px; border-radius:50%; border:2px solid white; box-shadow:0 0 10px rgba(0,0,0,0.5);"></div>
+          <span style="font-size:10px; color:white; background:rgba(0,0,0,0.7); padding:2px 4px; border-radius:3px; margin-left:4px;">${unit.code}</span>
+        `;
+
+        const newMarker = new mapboxgl.Marker({ element: el })
+          .setLngLat(lngLat)
+          .setPopup(new mapboxgl.Popup({ offset: 15 }).setHTML(`
+            <div style="color:#333; font-family:sans-serif;">
+              <strong>${unit.driverName}</strong><br/>
+              Speed: ${unit.speedKph || 0} km/h<br/>
+              Status: ${unit.status}
+            </div>
+          `))
           .addTo(map);
-        existing.set(unit.id, marker);
+
+        existingMarkers.set(unit.id, newMarker);
       }
     });
   }, [liveUnits]);
 
+  // 3. Supabase Realtime Listener
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    
     let channel: any = null;
-    let supabaseClient: ReturnType<typeof createBrowserSupabaseClient> | null = null;
-    try {
-      supabaseClient = createBrowserSupabaseClient();
-      channel = supabaseClient
-        .channel(`way-live-${branch.code ?? "global"}`)
-        .on(
-          "postgres_changes",
-          { event: "*", schema: "public", table: "vehicle_locations" },
-          () => {
-            if (typeof window !== "undefined") {
-              window.dispatchEvent(new CustomEvent("britium-live-refresh"));
-            }
-          }
-        )
-        .subscribe();
-    } catch {
-      // Environment may not be configured yet.
-    }
+    const supabase = createBrowserSupabaseClient();
 
-    return () => {
-      if (channel && supabaseClient) {
-        supabaseClient.removeChannel(channel);
-      }
-    };
-  }, [branch.code]);
+    channel = supabase
+      .channel(`live-location-${branch?.code || 'global'}`)
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'vehicle_locations' 
+      }, () => {
+        window.dispatchEvent(new CustomEvent("britium-live-refresh"));
+      })
+      .subscribe();
+
+    return () => { if (channel) supabase.removeChannel(channel); };
+  }, [branch?.code]);
 
   if (!token) {
     return (
-      <div className="map-fallback">
-        <strong>Mapbox token missing.</strong>
-        <span>Add NEXT_PUBLIC_MAPBOX_TOKEN or VITE_MAPBOX_TOKEN to render the live dispatch map.</span>
+      <div style={{ padding: '40px', background: '#1e293b', color: '#94a3b8', borderRadius: '12px', textAlign: 'center' }}>
+        <strong>Mapbox Token Missing</strong><br/>
+        Please set NEXT_PUBLIC_MAPBOX_TOKEN in your .env file.
       </div>
     );
   }
 
-  return <div ref={mapRef} className="way-map-surface" aria-label="Live route map" />;
+  return <div ref={mapRef} style={{ width: '100%', height: '500px', borderRadius: '12px', overflow: 'hidden' }} />;
 }

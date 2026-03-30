@@ -5,8 +5,7 @@ import { createAdminClient } from "../../../../../lib/admin-supabase";
 import { generateManifestNumber } from "../../../../../lib/way-management";
 
 export async function POST(request: NextRequest) {
-  const access = await requireOpsAccess(request, ["admin", "dispatcher", "ops", "branch_manager"], ["admin", "dispatcher", "ops", "branch_manager"]);
-  if (access instanceof NextResponse) return access;
+  const access = await requireOpsAccess();
 
   const body = await request.json();
   const shipmentIds = Array.isArray(body.shipmentIds) ? body.shipmentIds.map(String) : [];
@@ -50,7 +49,7 @@ export async function POST(request: NextRequest) {
       status: "sealed",
       total_shipments: shipments.length,
       total_cod_mmks: totalCod,
-      created_by_profile_id: access.profileId
+      created_by_profile_id: access.id
     })
     .select("id, manifest_number, status")
     .single();

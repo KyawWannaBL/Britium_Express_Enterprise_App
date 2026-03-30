@@ -1,5 +1,5 @@
 import "./globals.css";
-import AdminChrome from "./_components/AdminChrome";
+import { AdminChrome } from "./_components/AdminChrome";
 import { LanguageProvider } from "@/lib/i18n";
 
 export const metadata = {

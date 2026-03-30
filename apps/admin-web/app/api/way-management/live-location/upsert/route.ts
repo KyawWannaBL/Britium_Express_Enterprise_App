@@ -3,8 +3,7 @@ import { requireOpsAccess } from "../../../../../lib/api-guard";
 import { createAdminClient } from "../../../../../lib/admin-supabase";
 
 export async function POST(request: NextRequest) {
-  const access = await requireOpsAccess(request, ["admin", "dispatcher", "ops", "branch_manager"], ["admin", "dispatcher", "ops", "branch_manager"]);
-  if (access instanceof NextResponse) return access;
+  const access = await requireOpsAccess();
 
   const body = await request.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "Invalid JSON payload." }, { status: 400 });

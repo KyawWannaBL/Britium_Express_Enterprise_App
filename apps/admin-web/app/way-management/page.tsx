@@ -1,11 +1,15 @@
-
-import { Shell, SectionTitle } from "../_components/ui";
+import { createClient } from "@/lib/supabase/server";
 import WayManagementConsole from "./WayManagementConsole";
+import { redirect } from "next/navigation";
 
-export default function WayManagementPage() {
-  return (
-    <Shell activeHref="/way-management">
-      <WayManagementConsole />
-    </Shell>
-  );
+export default async function WayManagementPage() {
+  // 1. Await the client creation
+  const supabase = await createClient();
+
+  // 2. Verify Authentication
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/auth/sign-in");
+
+  // 3. Render the correct console
+  return <WayManagementConsole />;
 }

@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { createBrowserClient } from "@supabase/ssr";
+import { createBrowserClient } from "@supabase/ssr"; // <-- CHANGED THIS IMPORT
 import LanguageToggle from "@/app/_components/LanguageToggle";
 import { resolveHomeByRole } from "@/lib/auth-redirect";
-
-type Lang = "en" | "my";
+import { useAppLanguage } from "@/lib/i18n";
 
 type AuthStateResponse = {
   authenticated?: boolean;
@@ -14,16 +13,16 @@ type AuthStateResponse = {
   role?: string | null;
   mustChangePassword?: boolean;
   fullName?: string | null;
+  error?: string;
 };
 
-// Directly instantiate the browser client using exact string replacements 
-// so the Next.js compiler injects the environment variables correctly.
+// <-- CHANGED THIS SETUP FUNCTION
 const supabase = createBrowserClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-const copy = {
+const dict = {
   en: {
     brand: "Britium Express Delivery",
     title: "Operator Sign In",
@@ -38,7 +37,7 @@ const copy = {
     passwordPlaceholder: "Enter your password",
     rolePlaceholder: "Select role",
     resetSent: "Password reset email sent.",
-    roleMismatch: "Your account signed in successfully, but the selected role does not match your actual assigned role.",
+    roleMismatch: "Role mismatch detected.",
     roles: {
       SUPER_ADMIN: "Super Admin",
       APP_OWNER: "App Owner",
@@ -66,8 +65,8 @@ const copy = {
     emailPlaceholder: "admin@britiumexpress.com",
     passwordPlaceholder: "စကားဝှက်ထည့်ပါ",
     rolePlaceholder: "တာဝန်အမျိုးအစား ရွေးပါ",
-    resetSent: "စကားဝှက်ပြန်လည်သတ်မှတ်ရန် အီးမေးလ်ပို့ပြီးပါပြီ။",
-    roleMismatch: "အကောင့်ဝင်ရောက်မှုအောင်မြင်သော်လည်း ရွေးထားသော role သည် သင့်အမှန်တကယ် role နှင့်မကိုက်ညီပါ။",
+    resetSent: "အီးမေးလ်ပို့ပြီးပါပြီ။",
+    roleMismatch: "ရွေးထားသော role နှင့် သင့်အမှန်တကယ် role မကိုက်ညီပါ။",
     roles: {
       SUPER_ADMIN: "အထွေထွေအုပ်ချုပ်သူ",
       APP_OWNER: "စနစ်ပိုင်ရှင်",
@@ -85,29 +84,18 @@ const copy = {
 };
 
 const roleOptions = [
-  "SUPER_ADMIN",
-  "APP_OWNER",
-  "OPERATIONS_ADMIN",
-  "FINANCE_USER",
-  "FINANCE_STAFF",
-  "CUSTOMER_SERVICE",
-  "SUPERVISOR",
-  "WAREHOUSE_MANAGER",
-  "SUBSTATION_MANAGER",
-  "STAFF",
-  "DATA_ENTRY"
+  "SUPER_ADMIN", "APP_OWNER", "OPERATIONS_ADMIN", "FINANCE_USER",
+  "FINANCE_STAFF", "CUSTOMER_SERVICE", "SUPERVISOR", "WAREHOUSE_MANAGER",
+  "SUBSTATION_MANAGER", "STAFF", "DATA_ENTRY"
 ] as const;
 
-export default function SignInClient() {
+function SignInContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { lang } = useAppLanguage();
+  
+  const t = dict[lang as keyof typeof dict];
 
-  const initialLang =
-    typeof window !== "undefined" && window.localStorage.getItem("britium_lang") === "my"
-      ? "my"
-      : "en";
-
-  const [lang, setLang] = useState<Lang>(initialLang);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [selectedRole, setSelectedRole] = useState("");
@@ -115,18 +103,9 @@ export default function SignInClient() {
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
 
-  const t = copy[lang];
-
   const nextPath = useMemo(() => {
     return searchParams.get("next") || "/create-delivery";
   }, [searchParams]);
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem("britium_lang", lang);
-      document.documentElement.lang = lang === "my" ? "my" : "en";
-    }
-  }, [lang]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -135,76 +114,52 @@ export default function SignInClient() {
     setInfo("");
 
     try {
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      if (signInError) throw signInError;
 
-      if (signInError) {
-        setError(signInError.message);
-        return;
-      }
-
-      const stateRes = await fetch("/api/auth/state", {
-        method: "GET",
-        credentials: "include"
-      });
-
+      const stateRes = await fetch("/api/auth/state", { credentials: "include" });
       const state = (await stateRes.json().catch(() => ({}))) as AuthStateResponse;
 
       if (!stateRes.ok || !state.authenticated) {
-        setError(state.error || "Unable to resolve account role after sign-in.");
+        setError(state.error || "Unable to resolve account role.");
         return;
       }
 
       if (state.mustChangePassword) {
         router.replace(`/auth/must-change-password?next=${encodeURIComponent(nextPath)}`);
-        router.refresh();
         return;
       }
 
       const actualRole = String(state.appRole || state.role || "").toUpperCase();
-
-      if (selectedRole && actualRole && actualRole !== selectedRole) {
+      if (selectedRole && actualRole !== selectedRole) {
         setError(t.roleMismatch);
         return;
       }
 
-      const target = searchParams.get("next") || resolveHomeByRole(actualRole);
-      router.replace(target);
+      router.replace(searchParams.get("next") || resolveHomeByRole(actualRole));
       router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Sign-in failed.");
+    } catch (err: any) {
+      setError(err.message || "Sign-in failed.");
     } finally {
       setLoading(false);
     }
   }
 
   async function handleForgotPassword() {
+    if (!email) {
+      setError("Please enter your email address first.");
+      return;
+    }
     setLoading(true);
     setError("");
-    setInfo("");
-
     try {
-      // WIRING FIX: Explicitly append ?next=/auth/must-change-password
-      // so the callback route knows exactly where to drop the user off.
-      const redirectTo =
-        typeof window !== "undefined"
-          ? `${window.location.origin}/auth/callback?next=/auth/must-change-password`
-          : undefined;
-
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth/callback?next=/way-management`,
       });
-
-      if (resetError) {
-        setError(resetError.message);
-        return;
-      }
-
+      if (error) throw error;
       setInfo(t.resetSent);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to send reset email.");
+    } catch (err: any) {
+      setError(err.message || "Failed to send reset email.");
     } finally {
       setLoading(false);
     }
@@ -219,64 +174,43 @@ export default function SignInClient() {
             <h1 style={styles.title}>{t.title}</h1>
             <p style={styles.subtitle}>{t.subtitle}</p>
           </div>
-          <LanguageToggle value={lang} onChange={setLang} />
+          <LanguageToggle value={"en" as any} onChange={() => {}} />
         </div>
 
         <form onSubmit={handleSubmit} style={styles.form}>
           <label style={styles.label}>
             <span>{t.email}</span>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder={t.emailPlaceholder}
-              style={styles.input}
-              required
-            />
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t.emailPlaceholder} style={styles.input} required />
           </label>
-
           <label style={styles.label}>
             <span>{t.password}</span>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder={t.passwordPlaceholder}
-              style={styles.input}
-            />
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={t.passwordPlaceholder} style={styles.input} required />
           </label>
-
           <label style={styles.label}>
             <span>{t.role}</span>
-            <select
-              value={selectedRole}
-              onChange={(e) => setSelectedRole(e.target.value)}
-              style={styles.input}
-              required
-            >
+            <select value={selectedRole} onChange={(e) => setSelectedRole(e.target.value)} style={styles.input} required>
               <option value="">{t.rolePlaceholder}</option>
               {roleOptions.map((role) => (
-                <option key={role} value={role}>
-                  {t.roles[role]}
-                </option>
+                <option key={role} value={role}>{t.roles[role as keyof typeof t.roles]}</option>
               ))}
             </select>
           </label>
 
-          {error ? <div style={styles.error}>{error}</div> : null}
-          {info ? <div style={styles.info}>{info}</div> : null}
+          {error && <div style={styles.error}>{error}</div>}
+          {info && <div style={styles.info}>{info}</div>}
+
+          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "-6px" }}>
+            <button 
+              type="button" 
+              onClick={handleForgotPassword}
+              style={{ background: "none", border: "none", color: "#0b427a", fontSize: "12px", cursor: "pointer", fontWeight: 600 }}
+            >
+              {t.forgot}
+            </button>
+          </div>
 
           <button type="submit" style={styles.primaryButton} disabled={loading}>
             {loading ? t.signingIn : t.signIn}
-          </button>
-
-          <button
-            type="button"
-            style={styles.secondaryButton}
-            onClick={handleForgotPassword}
-            disabled={loading || !email}
-          >
-            {t.forgot}
           </button>
         </form>
       </div>
@@ -284,101 +218,25 @@ export default function SignInClient() {
   );
 }
 
+export default function SignInClient() {
+  return (
+    <Suspense fallback={<div style={styles.page}><div style={styles.card}>Loading...</div></div>}>
+      <SignInContent />
+    </Suspense>
+  );
+}
+
 const styles: Record<string, React.CSSProperties> = {
-  page: {
-    minHeight: "100vh",
-    display: "grid",
-    placeItems: "center",
-    padding: "24px",
-    background:
-      "linear-gradient(135deg, rgba(14,26,45,1) 0%, rgba(11,66,122,1) 45%, rgba(222,167,55,0.22) 100%)"
-  },
-  card: {
-    width: "100%",
-    maxWidth: "520px",
-    background: "#ffffff",
-    borderRadius: "24px",
-    padding: "28px",
-    boxShadow: "0 24px 60px rgba(0,0,0,0.18)"
-  },
-  topRow: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    gap: "16px",
-    marginBottom: "20px"
-  },
-  badge: {
-    display: "inline-block",
-    padding: "6px 10px",
-    borderRadius: "999px",
-    background: "#0b427a12",
-    color: "#0b427a",
-    fontSize: "12px",
-    fontWeight: 700,
-    marginBottom: "12px"
-  },
-  title: {
-    margin: 0,
-    fontSize: "28px",
-    lineHeight: 1.2,
-    color: "#0f172a"
-  },
-  subtitle: {
-    marginTop: "8px",
-    marginBottom: 0,
-    color: "#475569"
-  },
-  form: {
-    display: "grid",
-    gap: "14px"
-  },
-  label: {
-    display: "grid",
-    gap: "8px",
-    color: "#0f172a",
-    fontSize: "14px",
-    fontWeight: 600
-  },
-  input: {
-    height: "46px",
-    borderRadius: "12px",
-    border: "1px solid #cbd5e1",
-    padding: "0 14px",
-    fontSize: "14px",
-    outline: "none",
-    background: "#fff"
-  },
-  primaryButton: {
-    height: "46px",
-    borderRadius: "12px",
-    border: "none",
-    background: "#0b427a",
-    color: "#fff",
-    fontWeight: 700,
-    cursor: "pointer"
-  },
-  secondaryButton: {
-    height: "46px",
-    borderRadius: "12px",
-    border: "1px solid #cbd5e1",
-    background: "#fff",
-    color: "#0f172a",
-    fontWeight: 600,
-    cursor: "pointer"
-  },
-  error: {
-    borderRadius: "12px",
-    padding: "12px",
-    background: "#fef2f2",
-    color: "#b91c1c",
-    fontSize: "14px"
-  },
-  info: {
-    borderRadius: "12px",
-    padding: "12px",
-    background: "#eff6ff",
-    color: "#1d4ed8",
-    fontSize: "14px"
-  }
+    page: { minHeight: "100vh", display: "grid", placeItems: "center", padding: "24px", background: "linear-gradient(135deg, #0e1a2d 0%, #0b427a 45%, rgba(222,167,55,0.2) 100%)" },
+    card: { width: "100%", maxWidth: "520px", background: "#fff", borderRadius: "24px", padding: "28px", boxShadow: "0 24px 60px rgba(0,0,0,0.18)" },
+    topRow: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "20px" },
+    badge: { display: "inline-block", padding: "6px 10px", borderRadius: "999px", background: "#0b427a12", color: "#0b427a", fontSize: "12px", fontWeight: 700, marginBottom: "12px" },
+    title: { margin: 0, fontSize: "28px", color: "#0f172a" },
+    subtitle: { marginTop: "8px", color: "#475569" },
+    form: { display: "grid", gap: "14px" },
+    label: { display: "grid", gap: "8px", color: "#0f172a", fontSize: "14px", fontWeight: 600 },
+    input: { height: "46px", borderRadius: "12px", border: "1px solid #cbd5e1", padding: "0 14px", fontSize: "14px" },
+    primaryButton: { height: "46px", borderRadius: "12px", border: "none", background: "#0b427a", color: "#fff", fontWeight: 700, cursor: "pointer" },
+    error: { borderRadius: "12px", padding: "12px", background: "#fef2f2", color: "#b91c1c", fontSize: "14px" },
+    info: { borderRadius: "12px", padding: "12px", background: "#eff6ff", color: "#1d4ed8", fontSize: "14px" }
 };

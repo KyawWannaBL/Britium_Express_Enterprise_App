@@ -7,16 +7,13 @@ import { buildRequestHash, getIdempotentResponse, saveIdempotentResponse } from 
 const ROUTE_KEY = "bulk_pickup_register_v1";
 
 export async function POST(request: NextRequest) {
-  const access = await requireOpsAccess(request);
-  if (access instanceof NextResponse) {
-    return access;
-  }
+  const access = await requireOpsAccess();
 
   const body = await request.json();
   const filename = String(body.filename ?? "");
   const rows = Number(body.rows ?? 0);
   const customerId = body.customerId ? String(body.customerId) : null;
-  const uploadedByProfileId = body.uploadedByProfileId ? String(body.uploadedByProfileId) : (access.legacyProfileId ?? null);
+  const uploadedByProfileId = body.uploadedByProfileId ? String(body.uploadedByProfileId) : (access.id ?? null);
   const storageObjectPath = body.storageObjectPath ? String(body.storageObjectPath) : null;
 
   if (!filename || rows <= 0) {
@@ -60,7 +57,7 @@ export async function POST(request: NextRequest) {
 
     const response = {
       ok: true,
-      operator: (access.legacyProfileId ?? null),
+      operator: (access.id ?? null),
       job: data
     };
 

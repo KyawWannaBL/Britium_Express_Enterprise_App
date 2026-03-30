@@ -7,14 +7,11 @@ import { listOperatorMemberships, replaceOperatorMemberships } from "@/lib/opera
 type Params = { params: Promise<{ operatorId: string }> };
 
 export async function GET(request: NextRequest, { params }: Params) {
-  const identity = await requireOpsAccess(
-    request,
-    ["SUPER_ADMIN", "APP_OWNER", "OPERATIONS_ADMIN", "HR_ADMIN"],
-    ["any"]
-  );
+  // 1. Fix: 0 arguments
+  const identity = await requireOpsAccess();
 
-  if (identity instanceof NextResponse) return identity;
-  if (!canManageUsers(identity.appRole)) {
+  // 2. Fix: changed appRole to role
+  if (!canManageUsers(identity.role)) {
     return NextResponse.json({ error: "Not allowed to view branch memberships." }, { status: 403 });
   }
 
@@ -31,14 +28,11 @@ export async function GET(request: NextRequest, { params }: Params) {
 }
 
 export async function PUT(request: NextRequest, { params }: Params) {
-  const identity = await requireOpsAccess(
-    request,
-    ["SUPER_ADMIN", "APP_OWNER", "OPERATIONS_ADMIN", "HR_ADMIN"],
-    ["any"]
-  );
+  // 1. Fix: 0 arguments
+  const identity = await requireOpsAccess();
 
-  if (identity instanceof NextResponse) return identity;
-  if (!canManageUsers(identity.appRole)) {
+  // 2. Fix: changed appRole to role
+  if (!canManageUsers(identity.role)) {
     return NextResponse.json({ error: "Not allowed to edit branch memberships." }, { status: 403 });
   }
 
@@ -52,7 +46,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
 
     const supabase = createAdminClient();
     await supabase.from("operator_admin_actions").insert({
-      actor_profile_id: identity.profileId,
+      actor_profile_id: identity.id, // 3. Fix: changed profileId to id
       target_profile_id: operatorId,
       action: "update_branch_memberships",
       metadata: {

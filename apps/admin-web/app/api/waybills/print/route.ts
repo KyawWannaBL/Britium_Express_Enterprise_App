@@ -8,10 +8,7 @@ import { printFormats } from "../../../_lib/waybill";
 const ROUTE_KEY = "waybill_print_v1";
 
 export async function POST(request: NextRequest) {
-  const access = await requireOpsAccess(request);
-  if (access instanceof NextResponse) {
-    return access;
-  }
+  const access = await requireOpsAccess();
 
   const body = await request.json();
   const format = String(body.format ?? "");
@@ -94,7 +91,7 @@ export async function POST(request: NextRequest) {
     const { data: printJob } = await supabase
       .from("print_jobs")
       .insert({
-        created_by_profile_id: access.profileId,
+        created_by_profile_id: access.id,
         branch_id: branchId,
         job_type: "waybill",
         format_code: format,
@@ -112,7 +109,7 @@ export async function POST(request: NextRequest) {
       queuedAt: timestamp,
       format,
       copies,
-      operator: access.profileId,
+      operator: access.id,
       branchCode: access.branchCode,
       printJobId: printJob?.id ?? null,
       jobs: jobs.map((job) => ({

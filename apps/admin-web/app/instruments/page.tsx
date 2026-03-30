@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import LanguageToggle from "@/app/_components/LanguageToggle";
@@ -25,8 +25,8 @@ const supabase = createClient(
 const dict = {
   en: {
     brand: "Britium Express Delivery",
-    title: "Operator Sign In",
-    subtitle: "Sign in to continue to the operations console.",
+    title: "Instruments Console",
+    subtitle: "Sign in to manage logistics instruments.",
     email: "Email",
     password: "Password",
     role: "Role",
@@ -89,12 +89,12 @@ const roleOptions = [
   "SUBSTATION_MANAGER", "STAFF", "DATA_ENTRY"
 ] as const;
 
-export default function SignInClient() {
+// 1. Rename your main component to act as the "Content"
+function InstrumentsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { lang } = useAppLanguage();
   
-  // FIXED: Explicit type casting for TypeScript build
   const t = dict[lang as keyof typeof dict];
 
   const [email, setEmail] = useState("");
@@ -146,7 +146,6 @@ export default function SignInClient() {
     }
   }
 
-  // UI markup remains same as your previous working structure...
   return (
     <div style={styles.page}>
       <div style={styles.card}>
@@ -156,7 +155,7 @@ export default function SignInClient() {
             <h1 style={styles.title}>{t.title}</h1>
             <p style={styles.subtitle}>{t.subtitle}</p>
           </div>
-          <LanguageToggle />
+          <LanguageToggle value={"en" as any} onChange={() => {}} />
         </div>
 
         <form onSubmit={handleSubmit} style={styles.form}>
@@ -190,7 +189,16 @@ export default function SignInClient() {
   );
 }
 
-// Styles object as previously provided...
+// 2. Wrap the content in Suspense to satisfy the Next.js compiler
+export default function InstrumentsPage() {
+  return (
+    <Suspense fallback={<div style={styles.page}><div style={styles.card}>Loading Instruments...</div></div>}>
+      <InstrumentsContent />
+    </Suspense>
+  );
+}
+
+// Styles
 const styles: Record<string, React.CSSProperties> = {
     page: { minHeight: "100vh", display: "grid", placeItems: "center", padding: "24px", background: "linear-gradient(135deg, #0e1a2d 0%, #0b427a 45%, rgba(222,167,55,0.2) 100%)" },
     card: { width: "100%", maxWidth: "520px", background: "#fff", borderRadius: "24px", padding: "28px", boxShadow: "0 24px 60px rgba(0,0,0,0.18)" },

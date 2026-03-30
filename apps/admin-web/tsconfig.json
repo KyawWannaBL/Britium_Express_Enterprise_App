@@ -17,6 +17,9 @@
       "@/*": [
         "./*"
       ],
+      "@lib/*": [
+        "../../lib/*"
+      ],
       "@britium/shared": [
         "../../packages/shared/src/index.ts"
       ],
