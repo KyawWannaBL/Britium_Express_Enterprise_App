@@ -8,8 +8,7 @@ export async function GET(request: Request) {
   const next = searchParams.get('next') ?? '/dashboard'
 
   if (code) {
-    // FIX: cookies() is now asynchronous in Next.js 15/16
-    const cookieStore = await cookies() 
+    const cookieStore = await cookies()
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -20,7 +19,7 @@ export async function GET(request: Request) {
             cookieStore.set({ name, value, ...options })
           },
           remove(name: string, options: CookieOptions) {
-            cookieStore.set({ name, value, ...options })
+            cookieStore.set({ name, value: '', ...options })
           },
         },
       }
@@ -32,5 +31,5 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.redirect(`${origin}/auth/sign-in?error=recovery_failed`)
+  return NextResponse.redirect(`${origin}/auth/sign-in?error=recovery_expired`)
 }
