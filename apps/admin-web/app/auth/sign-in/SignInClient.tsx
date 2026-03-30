@@ -1,39 +1,28 @@
 "use client"
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { 
-  Loader2, Mail, Lock, ChevronRight, KeyRound, Globe 
+  Loader2, Mail, Lock, ChevronRight, KeyRound, Globe, ShieldCheck 
 } from "lucide-react";
 
 export default function SignInClient() {
   const router = useRouter();
   const supabase = createClient();
-  
-  const [identifier, setIdentifier] = useState(""); // Handles Email OR Smart ID
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
-
-    // LOGIC: Map Smart ID (e.g., H-SADM-0001) to the registered email domain
-    const loginEmail = identifier.includes("@") 
-      ? identifier 
-      : `${identifier.toLowerCase()}@britiumexpress.com`;
-
-    const { error: authError } = await supabase.auth.signInWithPassword({
-      email: loginEmail,
-      password,
-    });
-
+    const loginEmail = identifier.includes("@") ? identifier : `${identifier.toLowerCase()}@britiumexpress.com`;
+    const { error: authError } = await supabase.auth.signInWithPassword({ email: loginEmail, password });
     if (authError) {
-      setError(authError.message || "Unauthorized access.");
+      setError("Authorization Failed: Invalid Credentials");
       setLoading(false);
     } else {
       router.push("/dashboard");
@@ -41,65 +30,46 @@ export default function SignInClient() {
     }
   };
 
-  const handleResetRequest = async () => {
-    if (!identifier.includes("@")) {
-      setError("Please enter your corporate email to initiate recovery.");
-      return;
-    }
-    setLoading(true);
-    const { error: resetErr } = await supabase.auth.resetPasswordForEmail(identifier, {
-      redirectTo: "https://www.britiumexpress.app/auth/callback?next=/auth/must-change-password",
-    });
-
-    if (resetErr) {
-      setError(resetErr.message);
-    } else {
-      setMessage("Recovery protocol active. Check your terminal inbox.");
-    }
-    setLoading(false);
-  };
-
   return (
-    <div className="auth-card">
-      <h1>BRITIUM <span className="text-indigo-400">EXPRESS</span></h1>
-      <p className="subtitle text-[10px] uppercase tracking-widest text-slate-500">Security Gateway</p>
-      
-      <form onSubmit={handleSignIn} className="mt-8 space-y-4">
-        <div className="relative">
-          <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-          <input
-            type="text"
-            placeholder="IDENTITY EMAIL OR SMART ID"
-            className="w-full bg-black/20 border border-white/10 rounded-xl py-4 pl-12 pr-4 text-sm"
-            value={identifier}
-            onChange={(e) => setIdentifier(e.target.value)}
-            required
-          />
+    <div className="relative min-h-screen w-full overflow-hidden bg-slate-950 font-sans antialiased text-white">
+      <div className="fixed top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_20%,#1e293b_0%,#020617_100%)] z-0" />
+      <div className="fixed top-0 left-0 w-full h-full bg-gradient-to-br from-indigo-950/20 via-transparent to-emerald-950/20 backdrop-blur-[2px] z-10" />
+      <div className="relative z-20 flex min-h-screen flex-col items-center justify-center p-6">
+        <div className="w-full max-w-md">
+          <div className="mb-12 flex flex-col items-center text-center">
+            <div className="mb-6 rounded-[2.2rem] bg-white p-5 shadow-[0_0_60px_rgba(255,255,255,0.1)] ring-1 ring-white/20 transition-transform hover:scale-105">
+              <ShieldCheck className="text-indigo-600 h-12 w-12" />
+            </div>
+            <h1 className="text-4xl font-black tracking-tighter uppercase sm:text-5xl drop-shadow-2xl">
+              Britium <span className="text-indigo-400 italic font-light">Express</span>
+            </h1>
+            <p className="mt-4 text-[10px] font-bold uppercase tracking-[0.6em] text-slate-500">Security Gateway</p>
+          </div>
+          <div className="rounded-[2.5rem] border border-white/10 bg-white/5 p-8 shadow-2xl backdrop-blur-3xl ring-1 ring-white/5 relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-indigo-500/50 to-transparent" />
+            <form onSubmit={handleSignIn} className="space-y-6">
+              <div className="space-y-4">
+                <div className="relative group">
+                  <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-indigo-400" />
+                  <input type="text" required placeholder="IDENTITY EMAIL OR SMART ID" className="w-full rounded-2xl border border-white/5 bg-black/40 pl-12 pr-5 py-4 text-sm font-semibold text-white outline-none focus:border-indigo-500/40 focus:bg-black/60" value={identifier} onChange={(e) => setIdentifier(e.target.value)} />
+                </div>
+                <div className="relative group">
+                  <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-indigo-400" />
+                  <input type="password" required placeholder="ACCESS KEY" className="w-full rounded-2xl border border-white/5 bg-black/40 pl-12 pr-5 py-4 text-sm font-semibold text-white outline-none focus:border-indigo-500/40 focus:bg-black/60" value={password} onChange={(e) => setPassword(e.target.value)} />
+                </div>
+              </div>
+              {error && <p className="text-rose-400 text-[10px] font-black text-center uppercase tracking-widest">{error}</p>}
+              <button type="submit" disabled={loading} className="group w-full flex items-center justify-center rounded-2xl bg-indigo-600 py-4 text-xs font-black uppercase tracking-widest text-white shadow-2xl transition-all hover:bg-indigo-500 active:scale-95">
+                {loading ? <Loader2 className="animate-spin" size={18} /> : <>Authorize Entry <ChevronRight size={16} /></>}
+              </button>
+            </form>
+          </div>
+          <div className="mt-12 flex items-center justify-between px-6 opacity-30">
+            <button className="flex items-center space-x-2 text-[10px] font-black uppercase tracking-[0.3em]"><Globe size={14} /> <span>Language</span></button>
+            <span className="text-[10px] font-bold uppercase tracking-widest">v2.4.4-PRO</span>
+          </div>
         </div>
-
-        <div className="relative">
-          <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-          <input
-            type="password"
-            placeholder="ACCESS KEY"
-            className="w-full bg-black/20 border border-white/10 rounded-xl py-4 pl-12 pr-4 text-sm"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-        </div>
-
-        {error && <p className="text-rose-500 text-xs font-bold text-center">{error}</p>}
-        {message && <p className="text-emerald-500 text-xs font-bold text-center">{message}</p>}
-
-        <button type="submit" disabled={loading} className="w-full bg-indigo-600 hover:bg-indigo-500 py-4 rounded-xl font-black uppercase text-xs tracking-widest flex items-center justify-center gap-2">
-          {loading ? <Loader2 className="animate-spin" size={18} /> : <>Authorize <ChevronRight size={16} /></>}
-        </button>
-
-        <button type="button" onClick={handleResetRequest} className="w-full text-amber-500/60 hover:text-amber-400 text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 mt-4">
-          <KeyRound size={14} /> Recovery Protocol
-        </button>
-      </form>
+      </div>
     </div>
   );
 }
