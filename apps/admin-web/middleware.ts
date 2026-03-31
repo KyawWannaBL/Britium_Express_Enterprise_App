@@ -2,7 +2,9 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({ request: { headers: request.headers } })
+  let response = NextResponse.next({
+    request: { headers: request.headers },
+  })
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -27,21 +29,24 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   const { pathname } = request.nextUrl
 
-  // 🛡️ THE HARD LOCK
+  // 🛡️ THE EMERGENCY LOCKDOWN
   const isResetPage = pathname === '/auth/must-change-password'
   const isAuthPath = pathname.startsWith('/auth')
+  const isPublicFile = pathname.includes('.')
 
-  // If they are on the reset page, STOP. Do not redirect anywhere else.
+  // 1. If we are on the Reset Page, STOP EVERYTHING. 
+  // Do not redirect to the dashboard even if the user is "logged in".
   if (isResetPage) {
     return response
   }
 
-  // If no user and not an auth page, go to Sign-In
-  if (!user && !isAuthPath && !pathname.includes('.')) {
+  // 2. If no user and trying to reach a private page, go to Sign-In
+  if (!user && !isAuthPath && !isPublicFile) {
     return NextResponse.redirect(new URL('/auth/sign-in', request.url))
   }
 
-  // If user is logged in and tries to go to Sign-In, go to Dashboard
+  // 3. If user is logged in and tries to go to Sign-In, go to Dashboard
+  // (But the Reset Page check above will prevent this from breaking our flow)
   if (user && pathname === '/auth/sign-in') {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
