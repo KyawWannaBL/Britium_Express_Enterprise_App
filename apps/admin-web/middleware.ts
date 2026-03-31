@@ -38,24 +38,28 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // 1. Refresh session (Crucial for SSR)
   const { data: { user } } = await supabase.auth.getUser()
-
   const { pathname, searchParams } = request.nextUrl
 
-  // 2. DEFINE EXEMPTIONS: Paths that NEVER redirect to Login
-  const isAuthPage = pathname.startsWith('/auth')
-  const isCallback = pathname === '/auth/callback'
-  const hasRecoveryCode = searchParams.has('code') || searchParams.has('token_hash')
-  const isPublicFile = pathname.includes('.') // Static assets
+  // --- 🛡️ THE LOOP-BREAKER LOGIC ---
+  
+  // 1. Detect any kind of Auth Token (code, token, or token_hash)
+  const hasAuthToken = searchParams.has('code') || 
+                       searchParams.has('token') || 
+                       searchParams.has('token_hash');
 
-  // 3. LOGIC: If user is at the root or a protected page and not logged in
-  if (!user && !isAuthPage && !hasRecoveryCode && !isPublicFile) {
-    const loginUrl = new URL('/auth/sign-in', request.url)
-    return NextResponse.redirect(loginUrl)
+  // 2. Define Auth-related paths that should never be blocked
+  const isAuthPath = pathname.startsWith('/auth')
+  const isPublicFile = pathname.includes('.')
+
+  // 3. LOGIC: If no user and NOT an auth path/token, force Login
+  // We added !hasAuthToken here to ensure the recovery link can "pass through"
+  if (!user && !isAuthPath && !hasAuthToken && !isPublicFile) {
+    return NextResponse.redirect(new URL('/auth/sign-in', request.url))
   }
 
-  // 4. LOGIC: If user IS logged in but tries to access Sign-In
+  // 4. LOGIC: If logged in and tries to go to Sign-In, go to Dashboard
+  // BUT: Allow them to stay on /auth/must-change-password even if "logged in"
   if (user && pathname === '/auth/sign-in') {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
@@ -65,13 +69,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public (public folder assets)
-     */
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
