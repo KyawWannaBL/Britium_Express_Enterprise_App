@@ -3,21 +3,24 @@ import { NextResponse } from 'next/server'
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   
-  // Supabase sends the code as 'token' in this specific path
-  const token = searchParams.get('token')
+  // 1. Extract the key (Supabase uses 'token' or 'token_hash')
+  const token = searchParams.get('token') || searchParams.get('token_hash')
   const type = searchParams.get('type')
   
-  // Route 'recovery' types to your Emerald Reset screen
-  // Route others (like signup) to the Dashboard
+  // 2. Define the luxury destination
+  // If it's a recovery, send them to the Emerald Reset screen
   const next = type === 'recovery' ? '/auth/must-change-password' : '/dashboard'
 
   if (token) {
-    // Bridge this request to your existing /auth/callback logic
+    // 3. Construct the bridge to /auth/callback
     const callbackUrl = new URL('/auth/callback', origin)
     callbackUrl.searchParams.set('code', token)
     callbackUrl.searchParams.set('next', next)
+    
+    // 4. SECURITY: If the redirect_to is doubled, this clean redirect fixes it
     return NextResponse.redirect(callbackUrl)
   }
 
-  return NextResponse.redirect(`${origin}/auth/sign-in?error=invalid_verification_link`)
+  // Fallback for expired or broken links
+  return NextResponse.redirect(`${origin}/auth/sign-in?error=Protocol_Handshake_Failed`)
 }
