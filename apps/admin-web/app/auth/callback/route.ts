@@ -11,28 +11,48 @@ export async function GET(request: Request) {
 
   if (code) {
     const cookieStore = cookies()
+    
+    // 🛡️ CRITICAL GUARD: Check for Env Vars to prevent 500 Crash
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+    if (!supabaseUrl || !supabaseKey) {
+      console.error("CRITICAL: Supabase Environment Variables are missing in Vercel!")
+      return NextResponse.redirect(`${origin}/auth/sign-in?error=Configuration_Missing`)
+    }
+
     const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      supabaseUrl,
+      supabaseKey,
       {
         cookies: {
           get(name: string) { return cookieStore.get(name)?.value },
           set(name: string, value: string, options: CookieOptions) {
-            cookieStore.set({ name, value, ...options })
+            try { cookieStore.set({ name, value, ...options }) } catch (e) {
+              // Ignore cookie errors during redirect
+            }
           },
           remove(name: string, options: CookieOptions) {
-            cookieStore.set({ name, value: '', ...options })
+            try { cookieStore.set({ name, value: '', ...options }) } catch (e) {
+              // Ignore cookie errors during redirect
+            }
           },
         },
       }
     )
 
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
-    if (!error) {
-      // Direct absolute redirect to the reset page
-      return NextResponse.redirect(`${origin}${next}`)
+    try {
+      const { error } = await supabase.auth.exchangeCodeForSession(code)
+      if (!error) {
+        // Handshake successful -> Move to the next room
+        return NextResponse.redirect(new URL(next, origin))
+      }
+      console.error("Auth Exchange Error:", error.message)
+    } catch (err) {
+      console.error("Fatal Handshake Error:", err)
     }
   }
 
-  return NextResponse.redirect(`${origin}/auth/sign-in?error=Handshake_Failed`)
+  // Fallback if everything fails
+  return NextResponse.redirect(new URL('/auth/sign-in?error=Handshake_Failed', origin))
 }
