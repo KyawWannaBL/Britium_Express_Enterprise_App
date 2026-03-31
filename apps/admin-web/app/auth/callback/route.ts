@@ -5,14 +5,25 @@ import { NextResponse } from 'next/server'
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
-  const next = searchParams.get('next') ?? '/dashboard'
+  
+  // 1. Sanitize the "next" parameter to prevent doubled URLs
+  let next = searchParams.get('next') || '/dashboard'
+  if (next.includes('http')) {
+    try {
+      const nextUrl = new URL(next);
+      next = nextUrl.pathname + nextUrl.search;
+    } catch (e) {
+      next = '/dashboard';
+    }
+  }
 
   if (code) {
     const cookieStore = cookies()
     
-    // Guard: Prevent crash if Env Vars are missing in Vercel
+    // 2. Guard: Prevent 500 crash if Env Vars are missing
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-      return NextResponse.redirect(`${origin}/auth/sign-in?error=Config_Missing`)
+      console.error("CRITICAL: Supabase Environment Variables missing in Vercel");
+      return NextResponse.redirect(`${origin}/auth/sign-in?error=Configuration_Error`)
     }
 
     const supabase = createServerClient(
@@ -31,17 +42,19 @@ export async function GET(request: Request) {
       }
     )
 
+    // 3. The Handshake
     try {
       const { error } = await supabase.auth.exchangeCodeForSession(code)
       if (!error) {
-        // Successful Handshake -> Send to Emerald Reset Screen
+        // Handshake successful -> Move to the next room
         return NextResponse.redirect(`${origin}${next}`)
       }
+      console.error("Auth Error:", error.message);
     } catch (err) {
-      console.error('Fatal Callback Error:', err)
+      console.error("Fatal Server Error during Auth Handshake:", err);
     }
   }
 
-  // Fallback: Send back to Gateway on failure
-  return NextResponse.redirect(`${origin}/auth/sign-in?error=Auth_Session_Failed`)
+  // Fallback if everything fails
+  return NextResponse.redirect(`${origin}/auth/sign-in?error=Session_Handshake_Failed`)
 }
