@@ -1,227 +1,124 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
-import {
-  Search,
-  RefreshCw,
-  Eye,
-  CheckCircle2,
-  Truck,
-  XCircle,
-  RotateCcw,
-  MapPin,
-} from "lucide-react";
-import {
-  WAY_ENDPOINTS,
-  formatDateTime,
-  formatMMK,
-  getItems,
-  toNumber,
-  toText,
-  tryGet,
-} from "@/lib/productionApi";
-
-type WayRow = {
-  id: string;
-  trackingNo: string;
-  customerName: string;
-  phone: string;
-  status: string;
-  collectable: number;
-  riderRemark: string;
-  lastLocation: string;
-  createdAt: string;
-};
-
-function normalizeRows(input: unknown): WayRow[] {
-  const items = getItems(input);
-  return items.map((row, index) => ({
-    id: toText(row.id, `row-${index}`),
-    trackingNo: toText(row.tracking_no, row.trackingNo, row.waybill_no, `WB-${index + 1}`),
-    customerName: toText(row.customer_name, row.recipient_name, row.sender_name, "Unknown"),
-    phone: toText(row.phone, row.recipient_phone, row.customer_phone),
-    status: toText(row.current_status, row.status, "processing").toLowerCase(),
-    collectable: toNumber(row.total_collectable, row.cod_amount, row.total_charge, row.delivery_fee, row.delivery_fee_kms),
-    riderRemark: toText(row.rider_remark, row.comments, row.remark, "No comments"),
-    lastLocation: toText(row.last_location, row.current_branch, row.address, "Processing"),
-    createdAt: toText(row.created_at, row.createdAt, "-"),
-  }));
-}
-
-function badgeClass(status: string) {
-  const s = status.toLowerCase();
-  if (["delivered", "success", "completed"].includes(s)) return "bg-emerald-100 text-emerald-700";
-  if (["failed", "delivery_failed", "cancelled"].includes(s)) return "bg-rose-100 text-rose-700";
-  if (["returned", "return_initiated"].includes(s)) return "bg-amber-100 text-amber-700";
-  if (["on_hold", "hold"].includes(s)) return "bg-violet-100 text-violet-700";
-  return "bg-sky-100 text-sky-700";
-}
-
-function pretty(status: string) {
-  return status.replace(/_/g, " ").toUpperCase();
-}
+import { useState, useEffect } from 'react';
 
 export default function WayManagementPage() {
-  const [rows, setRows] = useState<WayRow[]>([]);
-  const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [selected, setSelected] = useState<WayRow | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [shipments, setShipments] = useState<any[]>([]);
+  const [metrics, setMetrics] = useState({ active: 0, success: 0, failures: 0, returns: 0, all_ways: 0 });
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('All Statuses');
 
-  useEffect(() => {
-    fetchRows();
-  }, []);
-
-  async function fetchRows() {
+  const fetchWays = async () => {
     setLoading(true);
-    setError(null);
-
     try {
-      const data = await tryGet<unknown>(WAY_ENDPOINTS.list);
-      setRows(normalizeRows(data));
-    } catch {
-      setRows([]);
-      setError("Unable to reach shipment listing API. Check NEXT_PUBLIC_API_BASE_URL and shipment endpoints.");
+      const res = await fetch('/api/v1/ways');
+      const json = await res.json();
+      if (json.data) {
+        setShipments(json.data);
+        setMetrics(json.metrics);
+      }
+    } catch (err) {
+      console.error("Failed to fetch way data");
     } finally {
       setLoading(false);
     }
-  }
+  };
 
-  const filtered = useMemo(() => {
-    return rows.filter((row) => {
-      const q = query.trim().toLowerCase();
-      const matchesQuery =
-        !q ||
-        row.trackingNo.toLowerCase().includes(q) ||
-        row.customerName.toLowerCase().includes(q) ||
-        row.phone.toLowerCase().includes(q);
+  useEffect(() => { fetchWays(); }, []);
 
-      const matchesStatus = statusFilter === "all" ? true : row.status === statusFilter;
-      return matchesQuery && matchesStatus;
-    });
-  }, [rows, query, statusFilter]);
-
-  const totalWays = filtered.length;
-  const successCount = filtered.filter((x) => ["delivered", "success", "completed"].includes(x.status)).length;
-  const failureCount = filtered.filter((x) => ["failed", "delivery_failed", "cancelled"].includes(x.status)).length;
-  const returnCount = filtered.filter((x) => ["returned", "return_initiated"].includes(x.status)).length;
+  // Simple filter logic for the table
+  const filteredShipments = shipments.filter(s => 
+    filter === 'All Statuses' || s.current_status.toLowerCase() === filter.toLowerCase().replace(' ', '_')
+  );
 
   return (
-    <div className="min-h-screen bg-[#f7f9fc] p-8">
-      <div className="space-y-2">
-        <p className="text-xs font-bold uppercase tracking-[0.3em] text-slate-400">
-          Britium Express Delivery
-        </p>
-        <h1 className="text-4xl font-black uppercase tracking-tight text-[#0d2c54]">
-          Way Management <span className="font-normal">/ ကုန်စည်စီမံခန့်ခွဲမှု</span>
-        </h1>
-        <p className="text-slate-500">
-          Chain of custody, QR scanning, dispatch routing, status control, and proof-of-delivery review. /
-          ကုန်စည်လမ်းကြောင်း၊ QR စကင်န်ဖတ်ခြင်း၊ လမ်းကြောင်းပြန်သတ်မှတ်ခြင်း၊ အခြေအနေပြင်ဆင်ခြင်းနှင့် POD စစ်ဆေးခြင်း
-        </p>
+    <div className="p-6">
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-slate-800">WAY MANAGEMENT / ကုန်စည်စီမံခန့်ခွဲမှု</h1>
+        <p className="text-sm text-slate-500">Chain of custody, dispatch routing, status control, and proof-of-delivery review.</p>
       </div>
 
-      {error && (
-        <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">
-          {error}
+      {/* Metrics Dashboard */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
+        <div className="bg-slate-900 p-6 rounded-xl shadow-sm text-white relative overflow-hidden">
+          <p className="text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">All Ways / စုစုပေါင်း</p>
+          <p className="text-4xl font-black">{metrics.all_ways}</p>
+          <span className="absolute top-4 right-4 text-xs bg-blue-500/20 text-blue-300 px-2 py-1 rounded">ACTIVE</span>
         </div>
-      )}
-
-      <div className="mt-8 grid gap-4 lg:grid-cols-4">
-        <MetricCard icon={<Truck className="text-white/90" size={28} />} badge="ACTIVE" badgeClass="bg-emerald-100 text-emerald-700" title="All Ways / စုစုပေါင်း" value={totalWays} dark />
-        <MetricCard icon={<CheckCircle2 className="text-emerald-500" size={28} />} badge="SUCCESS" badgeClass="bg-emerald-100 text-emerald-700" title="Success / အောင်မြင်မှု" value={successCount} />
-        <MetricCard icon={<XCircle className="text-rose-500" size={28} />} badge="FAILURE" badgeClass="bg-rose-100 text-rose-700" title="Failures / မအောင်မြင်မှု" value={failureCount} />
-        <MetricCard icon={<RotateCcw className="text-amber-500" size={28} />} badge="RETURN" badgeClass="bg-amber-100 text-amber-700" title="Returns / ပြန်ပို့မှု" value={returnCount} />
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+          <p className="text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider flex items-center justify-between">
+            Success <span className="text-green-500">✓</span>
+          </p>
+          <p className="text-4xl font-black text-slate-800">{metrics.success}</p>
+        </div>
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+          <p className="text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider flex items-center justify-between">
+            Failures <span className="text-red-500">✕</span>
+          </p>
+          <p className="text-4xl font-black text-slate-800">{metrics.failures}</p>
+        </div>
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+          <p className="text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider flex items-center justify-between">
+            Returns <span className="text-yellow-500">↺</span>
+          </p>
+          <p className="text-4xl font-black text-slate-800">{metrics.returns}</p>
+        </div>
       </div>
 
-      <div className="mt-8 rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="grid gap-4 lg:grid-cols-[1.4fr_0.8fr_0.5fr]">
-          <div className="relative">
-            <Search size={18} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search by tracking / customer / phone ..."
-              className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-11 pr-4 text-sm outline-none focus:border-[#0d2c54] focus:bg-white"
-            />
+      {/* Control Bar & Table */}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+        <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+          <div className="flex gap-4">
+            <select 
+              className="p-2 border rounded text-sm outline-none focus:border-blue-500"
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+            >
+              <option>All Statuses</option>
+              <option>In Transit</option>
+              <option>Out For Delivery</option>
+              <option>Delivered</option>
+              <option>Exception</option>
+            </select>
           </div>
-
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 outline-none"
-          >
-            <option value="all">All Statuses</option>
-            <option value="pending_pickup">Pending Pickup</option>
-            <option value="out_for_delivery">Out for Delivery</option>
-            <option value="delivered">Delivered</option>
-            <option value="delivery_failed">Delivery Failed</option>
-            <option value="returned">Returned</option>
-            <option value="on_hold">On Hold</option>
-          </select>
-
-          <button
-            onClick={fetchRows}
-            className="flex items-center justify-center gap-2 rounded-2xl bg-[#0d2c54] px-4 py-3 text-sm font-black uppercase tracking-wider text-white hover:opacity-95"
-          >
-            <RefreshCw size={16} />
-            Refresh
+          <button onClick={fetchWays} className="bg-slate-800 hover:bg-slate-900 text-white text-sm font-bold py-2 px-4 rounded flex items-center gap-2 transition-colors">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+            REFRESH
           </button>
         </div>
 
-        <div className="mt-8 overflow-x-auto rounded-[28px] border border-slate-200">
-          <table className="min-w-full border-separate border-spacing-0 text-sm">
-            <thead className="bg-slate-50">
-              <tr className="text-left text-slate-500">
-                <th className="border-b border-slate-200 px-4 py-4 font-black uppercase tracking-wider">Tracking</th>
-                <th className="border-b border-slate-200 px-4 py-4 font-black uppercase tracking-wider">Customer</th>
-                <th className="border-b border-slate-200 px-4 py-4 font-black uppercase tracking-wider">Status</th>
-                <th className="border-b border-slate-200 px-4 py-4 font-black uppercase tracking-wider">Collectable</th>
-                <th className="border-b border-slate-200 px-4 py-4 font-black uppercase tracking-wider">Location</th>
-                <th className="border-b border-slate-200 px-4 py-4 font-black uppercase tracking-wider">Rider Remarks</th>
-                <th className="border-b border-slate-200 px-4 py-4 font-black uppercase tracking-wider">Action</th>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-left">
+            <thead className="text-xs text-slate-500 uppercase bg-slate-50 border-b">
+              <tr>
+                <th className="px-6 py-4">Tracking</th>
+                <th className="px-6 py-4">Customer</th>
+                <th className="px-6 py-4">Status</th>
+                <th className="px-6 py-4">Collectable</th>
+                <th className="px-6 py-4 text-right">Action</th>
               </tr>
             </thead>
-            <tbody className="bg-white">
+            <tbody>
               {loading ? (
-                <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center text-slate-400">
-                    Loading shipment records...
-                  </td>
-                </tr>
-              ) : filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center text-slate-400">
-                    No shipment records found.
-                  </td>
-                </tr>
+                <tr><td colSpan={5} className="px-6 py-8 text-center text-slate-400">Syncing with network...</td></tr>
+              ) : filteredShipments.length === 0 ? (
+                <tr><td colSpan={5} className="px-6 py-8 text-center text-slate-400">No shipment records found matching criteria.</td></tr>
               ) : (
-                filtered.map((row) => (
-                  <tr key={row.id} className="hover:bg-slate-50">
-                    <td className="border-b border-slate-100 px-4 py-4">
-                      <div className="font-black text-[#0d2c54]">{row.trackingNo}</div>
-                      <div className="mt-1 text-xs text-slate-400">{formatDateTime(row.createdAt)}</div>
-                    </td>
-                    <td className="border-b border-slate-100 px-4 py-4">
-                      <div className="font-bold text-slate-700">{row.customerName}</div>
-                      <div className="mt-1 text-xs text-slate-400">{row.phone}</div>
-                    </td>
-                    <td className="border-b border-slate-100 px-4 py-4">
-                      <span className={`inline-flex rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wider ${badgeClass(row.status)}`}>
-                        {pretty(row.status)}
+                filteredShipments.map((shipment) => (
+                  <tr key={shipment.id} className="border-b hover:bg-slate-50">
+                    <td className="px-6 py-4 font-bold text-slate-700">{shipment.tracking_no}</td>
+                    <td className="px-6 py-4">{shipment.recipient_name}</td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider
+                        ${shipment.current_status === 'delivered' ? 'bg-green-100 text-green-700' : 
+                          shipment.current_status.includes('failed') ? 'bg-red-100 text-red-700' : 
+                          'bg-blue-100 text-blue-700'}`}>
+                        {shipment.current_status.replace('_', ' ')}
                       </span>
                     </td>
-                    <td className="border-b border-slate-100 px-4 py-4 font-black text-emerald-600">
-                      {formatMMK(row.collectable)}
-                    </td>
-                    <td className="border-b border-slate-100 px-4 py-4 text-slate-600">{row.lastLocation}</td>
-                    <td className="border-b border-slate-100 px-4 py-4 text-slate-500 italic">{row.riderRemark}</td>
-                    <td className="border-b border-slate-100 px-4 py-4">
-                      <button onClick={() => setSelected(row)} className="inline-flex items-center gap-1 rounded-xl bg-slate-100 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-slate-700 hover:bg-slate-200">
-                        <Eye size={14} />
-                        View
-                      </button>
+                    <td className="px-6 py-4 font-mono">{shipment.cod_amount?.toLocaleString() || 0} MMK</td>
+                    <td className="px-6 py-4 text-right">
+                      <button className="text-blue-600 hover:underline text-xs font-bold">Details</button>
                     </td>
                   </tr>
                 ))
@@ -230,61 +127,6 @@ export default function WayManagementPage() {
           </table>
         </div>
       </div>
-
-      {selected && (
-        <div className="mt-8 rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex items-center justify-between border-b border-slate-200 pb-5">
-            <div>
-              <h2 className="text-2xl font-black text-[#0d2c54]">Shipment Lifecycle</h2>
-              <p className="mt-1 text-slate-500">{selected.trackingNo} · {selected.customerName}</p>
-            </div>
-            <button onClick={() => setSelected(null)} className="rounded-2xl bg-slate-100 px-4 py-3 text-xs font-black uppercase tracking-widest text-slate-700 hover:bg-slate-200">
-              Close
-            </button>
-          </div>
-
-          <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <InfoCard title="Tracking" value={selected.trackingNo} />
-            <InfoCard title="Status" value={pretty(selected.status)} />
-            <InfoCard title="Collectable" value={formatMMK(selected.collectable)} valueClass="text-emerald-600" />
-            <InfoCard title="Last Location" value={selected.lastLocation} />
-          </div>
-
-          <div className="mt-6 rounded-2xl border border-slate-200 p-5">
-            <div className="flex items-center gap-2">
-              <MapPin size={16} className="text-slate-400" />
-              <h3 className="text-sm font-black uppercase tracking-[0.2em] text-slate-500">Remarks</h3>
-            </div>
-            <div className="mt-3 rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">
-              {selected.riderRemark}
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function MetricCard({ icon, badge, badgeClass, title, value, dark = false }: { icon: React.ReactNode; badge: string; badgeClass: string; title: string; value: number; dark?: boolean }) {
-  return (
-    <div className={`rounded-[28px] p-6 shadow-sm ${dark ? "bg-[#192b4d] text-white" : "bg-white"}`}>
-      <div className="mb-6 flex items-center justify-between">
-        {icon}
-        <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wider ${badgeClass}`}>
-          {badge}
-        </span>
-      </div>
-      <p className={`text-xs font-black uppercase tracking-[0.2em] ${dark ? "text-white/60" : "text-slate-400"}`}>{title}</p>
-      <p className={`mt-4 text-5xl font-black ${dark ? "text-white" : "text-[#0d2c54]"}`}>{value}</p>
-    </div>
-  );
-}
-
-function InfoCard({ title, value, valueClass = "text-[#0d2c54]" }: { title: string; value: string; valueClass?: string }) {
-  return (
-    <div className="rounded-2xl bg-slate-50 p-4">
-      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">{title}</p>
-      <p className={`mt-2 font-black ${valueClass}`}>{value}</p>
     </div>
   );
 }
