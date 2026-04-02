@@ -1,19 +1,20 @@
+import type { Metadata } from "next";
 import "./globals.css";
-import { AdminChrome } from "./_components/AdminChrome";
-import { LanguageProvider } from "@/lib/i18n";
+import ClientLayoutWrapper from "@/components/ClientLayoutWrapper";
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "Britium Express Enterprise",
-  description: "Britium Express Delivery operations console"
+  description: "Enterprise Logistics Console",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>
-        <LanguageProvider>
-          <AdminChrome>{children}</AdminChrome>
-        </LanguageProvider>
+      <body className="antialiased">
+        {/* The wrapper decides whether to show the Sidebar or not based on the URL */}
+        <ClientLayoutWrapper>
+          {children}
+        </ClientLayoutWrapper>
       </body>
     </html>
   );

@@ -1,0 +1,224 @@
+"use client";
+
+import React, { useState } from "react";
+import { Search, PackageSearch, Clock3, MapPin, ShieldCheck, RefreshCw } from "lucide-react";
+import {
+  TRACK_ENDPOINTS,
+  formatDateTime,
+  getItems,
+  toText,
+  tryGet,
+  withReplacements,
+} from "@/lib/productionApi";
+
+type Summary = {
+  trackingNo: string;
+  status: string;
+  publicStatus: string;
+  receiver: string;
+  location: string;
+  estimatedDate: string;
+};
+
+type TimelineEvent = {
+  id: string;
+  label: string;
+  eventAt: string;
+  notes: string;
+};
+
+type Pod = {
+  recipientName: string;
+  podType: string;
+  collectedAt: string;
+};
+
+function normalizeSummary(input: unknown): Summary {
+  const row = (input && typeof input === "object" ? (input as Record<string, unknown>) : {}) || {};
+  return {
+    trackingNo: toText(row.tracking_no, row.trackingNo),
+    status: toText(row.current_status, row.status),
+    publicStatus: toText(row.public_status, row.status),
+    receiver: toText(row.receiver_name, row.recipient_name, row.customer_name, "-"),
+    location: toText(row.last_location, row.current_branch, row.location, "-"),
+    estimatedDate: toText(row.estimated_delivery, row.eta, "-"),
+  };
+}
+
+function normalizeTimeline(input: unknown): TimelineEvent[] {
+  return getItems(input).map((row, index) => ({
+    id: toText(row.id, `t-${index}`),
+    label: toText(row.public_status, row.internal_status, row.to_status, row.event_code, "EVENT"),
+    eventAt: toText(row.event_at, row.created_at, "-"),
+    notes: toText(row.notes, row.message, "-"),
+  }));
+}
+
+function normalizePod(input: unknown): Pod {
+  const row = (input && typeof input === "object" ? (input as Record<string, unknown>) : {}) || {};
+  return {
+    recipientName: toText(row.recipient_name, row.customer_name, "-"),
+    podType: toText(row.pod_type, "-"),
+    collectedAt: toText(row.collected_at, row.created_at, "-"),
+  };
+}
+
+export default function CustomerTrackingPage() {
+  const [trackingNo, setTrackingNo] = useState("");
+  const [summary, setSummary] = useState<Summary | null>(null);
+  const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
+  const [pod, setPod] = useState<Pod | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function lookup() {
+    const value = trackingNo.trim();
+    if (!value) return;
+
+    setLoading(true);
+    setError(null);
+    setSummary(null);
+    setTimeline([]);
+    setPod(null);
+
+    try {
+      const summaryData = await tryGet<unknown>(
+        withReplacements(TRACK_ENDPOINTS.summary, { trackingNo: value })
+      );
+      setSummary(normalizeSummary(summaryData));
+
+      const [timelineRes, podRes] = await Promise.allSettled([
+        tryGet<unknown>(withReplacements(TRACK_ENDPOINTS.timeline, { trackingNo: value })),
+        tryGet<unknown>(withReplacements(TRACK_ENDPOINTS.pod, { trackingNo: value })),
+      ]);
+
+      if (timelineRes.status === "fulfilled") {
+        setTimeline(normalizeTimeline(timelineRes.value));
+      }
+
+      if (podRes.status === "fulfilled") {
+        setPod(normalizePod(podRes.value));
+      }
+    } catch {
+      setError("Tracking lookup failed. Check the public tracking endpoint or confirm the tracking number.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-[#f7f9fc] p-8">
+      <div className="mx-auto max-w-6xl">
+        <div className="space-y-2">
+          <p className="text-xs font-bold uppercase tracking-[0.3em] text-slate-400">Public Tracking</p>
+          <h1 className="text-4xl font-black uppercase tracking-tight text-[#0d2c54]">
+            Customer Tracking <span className="font-normal">/ ဖောက်သည်ခြေရာခံစနစ်</span>
+          </h1>
+          <p className="text-slate-500">
+            Track shipment progress, review status timeline, and view delivery proof when available. /
+            ကုန်စည်လမ်းကြောင်းစောင့်ကြည့်ရန်၊ အခြေအနေမှတ်တမ်းကြည့်ရန်နှင့် လိုအပ်ပါက ပို့ဆောင်မှုအထောက်အထားကြည့်ရန်
+          </p>
+        </div>
+
+        <div className="mt-8 rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex flex-col gap-4 md:flex-row">
+            <div className="relative flex-1">
+              <Search size={18} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                value={trackingNo}
+                onChange={(e) => setTrackingNo(e.target.value)}
+                className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-11 pr-4 text-sm outline-none focus:border-[#0d2c54] focus:bg-white"
+                placeholder="Enter tracking number"
+              />
+            </div>
+            <button onClick={lookup} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#0d2c54] px-5 py-3 font-black uppercase tracking-wider text-white hover:opacity-95">
+              {loading ? <RefreshCw size={16} className="animate-spin" /> : <PackageSearch size={16} />}
+              Track
+            </button>
+          </div>
+
+          {error && (
+            <div className="mt-5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">
+              {error}
+            </div>
+          )}
+        </div>
+
+        {summary && (
+          <>
+            <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <InfoCard icon={<PackageSearch size={16} className="text-[#0d2c54]" />} title="Tracking" value={summary.trackingNo} />
+              <InfoCard icon={<ShieldCheck size={16} className="text-[#0d2c54]" />} title="Public Status" value={summary.publicStatus} />
+              <InfoCard icon={<MapPin size={16} className="text-[#0d2c54]" />} title="Current Location" value={summary.location} />
+              <InfoCard icon={<Clock3 size={16} className="text-[#0d2c54]" />} title="Estimated Delivery" value={formatDateTime(summary.estimatedDate)} />
+            </div>
+
+            <div className="mt-8 grid gap-4 xl:grid-cols-[1fr_0.9fr]">
+              <Panel title="Shipment Timeline / ကုန်စည်အခြေအနေမှတ်တမ်း">
+                <div className="space-y-4">
+                  {timeline.length === 0 ? (
+                    <div className="rounded-2xl bg-slate-50 p-6 text-slate-500">No public timeline records available.</div>
+                  ) : (
+                    timeline.map((event) => (
+                      <div key={event.id} className="flex items-start gap-4 rounded-2xl bg-slate-50 p-4">
+                        <div className="mt-1 flex h-8 w-8 items-center justify-center rounded-full bg-[#0d2c54] text-white">
+                          <Clock3 size={14} />
+                        </div>
+                        <div>
+                          <p className="font-black text-[#0d2c54]">{event.label}</p>
+                          <p className="text-sm text-slate-500">{formatDateTime(event.eventAt)}</p>
+                          <p className="mt-1 text-sm text-slate-600">{event.notes}</p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </Panel>
+
+              <Panel title="Proof of Delivery / ပို့ဆောင်မှုအထောက်အထား">
+                {!pod ? (
+                  <div className="rounded-2xl bg-slate-50 p-6 text-slate-500">No POD available for this shipment.</div>
+                ) : (
+                  <div className="space-y-4">
+                    <InfoCard icon={<ShieldCheck size={16} className="text-[#0d2c54]" />} title="Recipient" value={pod.recipientName} />
+                    <InfoCard icon={<PackageSearch size={16} className="text-[#0d2c54]" />} title="POD Type" value={pod.podType} />
+                    <InfoCard icon={<Clock3 size={16} className="text-[#0d2c54]" />} title="Collected At" value={formatDateTime(pod.collectedAt)} />
+                  </div>
+                )}
+              </Panel>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Panel({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+      <h2 className="text-lg font-black text-[#0d2c54]">{title}</h2>
+      <div className="mt-4">{children}</div>
+    </div>
+  );
+}
+
+function InfoCard({
+  icon,
+  title,
+  value,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-2xl bg-white border border-slate-200 p-4">
+      <div className="flex items-center gap-2">
+        {icon}
+        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">{title}</span>
+      </div>
+      <div className="mt-2 font-black text-[#0d2c54]">{value}</div>
+    </div>
+  );
+}

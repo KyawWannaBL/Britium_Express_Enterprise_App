@@ -1,28 +1,17 @@
-import { Shell, SectionTitle } from "../_components/ui";
-import OperatorManagementConsole from "./OperatorManagementConsole";
+import OperatorManagementClient from "./OperatorManagementClient";
 
 export default function OperatorManagementPage() {
   return (
-    <Shell activeHref="/operator-management">
-      <section className="hero">
-        <article className="hero-card">
-          <div className="kicker">Super admin control</div>
-          <h1 className="hero-title">Operator onboarding, branch access, and security controls.</h1>
-          <p className="hero-copy" style={{ marginTop: 16, maxWidth: 760 }}>
-            Create staff users, assign branch scope, force password reset, suspend access, and
-            manage roles from one branded control surface for Britium Express Delivery.
-          </p>
-        </article>
-      </section>
-
-      <section className="panel" style={{ marginTop: 24 }}>
-        <SectionTitle
-          eyebrow="Identity operations"
-          title="Operator Management"
-          copy="This screen is wired for Supabase Auth, branch-scoped RBAC, must-change-password enforcement, and enterprise-grade operational governance."
-        />
-        <OperatorManagementConsole />
-      </section>
-    </Shell>
+    <div className="max-w-7xl mx-auto p-6" style={{ fontFamily: "'Pyidaungsu', 'Noto Sans Myanmar', sans-serif" }}>
+      <div className="mb-10">
+        <h1 className="text-4xl font-black text-[#0d2c54] uppercase tracking-tighter italic">
+          Network <span className="text-blue-500 not-italic font-light">Personnel</span>
+        </h1>
+        <p className="text-slate-400 font-bold text-xs uppercase tracking-[0.4em] mt-1">
+          HR Management & Authority Control / ဝန်ထမ်းစီမံခန့်ခွဲမှု
+        </p>
+      </div>
+      <OperatorManagementClient />
+    </div>
   );
 }

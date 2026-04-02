@@ -1,109 +1,122 @@
-"use client"
-import React, { useState } from "react";
+"use client";
+
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
-import { 
-  Loader2, ShieldCheck, ChevronRight, Fingerprint, 
-  Download, UserPlus, KeyRound, Globe, Smartphone
-} from "lucide-react";
+import Link from "next/link";
+import { ShieldCheck, Download, KeyRound, UserPlus } from "lucide-react";
+import { createClient } from "@/lib/supabase/client"; // IMPORT THE SINGLETON
 
 export default function SignInClient() {
   const router = useRouter();
-  const supabase = createClient();
-  const [id, setId] = useState("");
-  const [pw, setPw] = useState("");
+  const supabase = createClient(); // INITIALIZE SECURELY INSIDE COMPONENT
+  
+  const [lang, setLang] = useState<"en" | "mm">("en");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const dict = {
+    en: {
+      title: "ENTERPRISE CONSOLE",
+      email: "Identity Email or Smart ID",
+      password: "Access Key",
+      btnReady: "Initialize Authorization",
+      btnLoading: "Verifying Credentials...",
+      errorGeneric: "Authentication failed. Please check your credentials.",
+      register: "Registration Node",
+      recovery: "Recovery Protocol",
+      download: "Download Mobile Core (APK)"
+    },
+    mm: {
+      title: "လုပ်ငန်းသုံးစနစ်",
+      email: "အီးမေးလ် သို့မဟုတ် အသုံးပြုသူအမည်",
+      password: "စကားဝှက်",
+      btnReady: "စနစ်သို့ ဝင်ရောက်မည်",
+      btnLoading: "စစ်ဆေးနေပါသည်...",
+      errorGeneric: "ဝင်ရောက်ခြင်း မအောင်မြင်ပါ။",
+      register: "အကောင့်အသစ်ဖွင့်ရန်",
+      recovery: "စကားဝှက်မေ့နေပါသလား",
+      download: "မိုဘိုင်းဆော့ဖ်ဝဲ ဒေါင်းလုဒ်"
+    }
+  };
+
+  const t = dict[lang];
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const email = id.includes("@") ? id : `${id.toLowerCase()}@britiumexpress.com`;
-    const { error } = await supabase.auth.signInWithPassword({ email, password: pw });
-    if (error) { setLoading(false); } else { router.push("/dashboard"); }
+    setError("");
+
+    try {
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (authError) throw authError;
+
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", authData.user.id)
+        .single();
+
+      const role = profileData?.role || "GUEST";
+      localStorage.setItem("britium_authority", role);
+
+      if (role === "SYS" || role === "FIN") router.push("/financial-reports");
+      else if (role === "MER") router.push("/create-delivery");
+      else router.push("/dashboard");
+      
+      router.refresh();
+
+    } catch (err: any) {
+      setError(err.message || t.errorGeneric);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="relative min-h-screen w-full flex items-center justify-center p-6 bg-black overflow-hidden">
-      {/* 🌌 Deep Space Background */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,#1e1b4b_0%,#000000_100%)] z-0" />
-      
-      <div className="relative z-10 w-full max-w-lg">
-        {/* Brand Header */}
-        <div className="mb-12 text-center">
-          <div className="inline-flex p-1 rounded-full bg-gradient-to-tr from-indigo-500 to-emerald-500 shadow-[0_0_50px_rgba(99,102,241,0.3)]">
-            <div className="bg-black rounded-full p-5">
-              <ShieldCheck className="h-10 w-10 text-white" strokeWidth={1} />
-            </div>
+    <div className="flex flex-col items-center justify-center min-h-screen bg-[#0A192F] p-4 font-sans relative overflow-hidden w-full">
+      <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-blue-600/20 rounded-full blur-[100px]" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-[#ffd700]/10 rounded-full blur-[100px]" />
+
+      <div className="absolute top-6 right-6 flex gap-2 bg-white/5 p-1 rounded-lg backdrop-blur-md border border-white/10 z-10">
+        <button onClick={() => setLang("en")} className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${lang === "en" ? "bg-[#ffd700] text-[#0A192F]" : "text-white/60 hover:text-white"}`}>EN</button>
+        <button onClick={() => setLang("mm")} className={`px-3 py-1 rounded-md text-xs transition-all ${lang === "mm" ? "bg-[#ffd700] text-[#0A192F]" : "text-white/60 hover:text-white"}`} style={{ fontFamily: "'Pyidaungsu', 'Noto Sans Myanmar', sans-serif" }}>မြန်မာ</button>
+      </div>
+
+      <div className="w-full max-w-[420px] z-10 flex flex-col items-center">
+        <div className="flex flex-col items-center mb-8">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#0d2c54] to-blue-900 border border-white/10 flex items-center justify-center shadow-2xl mb-6 relative group">
+             <div className="absolute inset-0 rounded-2xl border-2 border-[#ffd700]/30 group-hover:border-[#ffd700] transition-colors" />
+             <ShieldCheck className="text-[#ffd700] w-8 h-8" />
           </div>
-          <h1 className="mt-8 text-5xl font-black tracking-tighter italic uppercase text-white">
-            Britium <span className="font-light text-indigo-400">Express</span>
-          </h1>
-          <p className="text-[10px] font-bold uppercase tracking-[0.6em] text-slate-500 mt-2">Enterprise Console</p>
+          <h1 className="text-4xl font-black italic tracking-tighter text-white uppercase">Britium <span className="font-light text-blue-400">Express</span></h1>
+          <p className="text-[10px] font-bold tracking-[0.4em] text-slate-400 mt-2 uppercase" style={{ fontFamily: lang === 'mm' ? "'Pyidaungsu', sans-serif" : "inherit" }}>{t.title}</p>
         </div>
 
-        {/* 💎 Main Acrylic Panel */}
-        <div className="acrylic-3d rounded-[3rem] p-10 relative overflow-hidden border border-white/10">
-          <form onSubmit={handleSignIn} className="space-y-8 relative z-10">
-            <div className="space-y-5">
-              <input 
-                type="text" placeholder="IDENTITY EMAIL OR SMART ID" 
-                className="w-full bg-black/40 border border-white/5 rounded-2xl px-6 py-5 text-sm font-bold tracking-widest uppercase outline-none focus:border-indigo-500 transition-all shadow-[inset_0_2px_10px_rgba(0,0,0,0.8)]"
-                value={id} onChange={e => setId(e.target.value)}
-              />
-              <input 
-                type="password" placeholder="ACCESS KEY" 
-                className="w-full bg-black/40 border border-white/5 rounded-2xl px-6 py-5 text-sm font-bold tracking-widest uppercase outline-none focus:border-emerald-500 transition-all shadow-[inset_0_2px_10px_rgba(0,0,0,0.8)]"
-                value={pw} onChange={e => setPw(e.target.value)}
-              />
-            </div>
-
-            {/* 🌊 Primary Authorization Button */}
-            <button className="jelly-button relative w-full group overflow-hidden rounded-2xl bg-indigo-600 shadow-[0_10px_30px_rgba(79,70,229,0.4)]">
-              <div className="relative py-5 flex items-center justify-center gap-3 font-black text-xs uppercase tracking-[0.4em]">
-                {loading ? <Loader2 className="animate-spin" /> : (
-                  <>
-                    <Fingerprint size={18} className="text-emerald-400" />
-                    <span>Initialize Authorization</span>
-                    <ChevronRight size={16} />
-                  </>
-                )}
-              </div>
-            </button>
-
-            {/* 🛠 Utility Command Row: Sign Up & Recovery */}
-            <div className="flex justify-between items-center pt-4 border-t border-white/5">
-              <button type="button" onClick={() => router.push('/auth/sign-up')} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white transition-colors">
-                <UserPlus size={14} /> Registration Node
-              </button>
-              <button type="button" onClick={() => router.push('/auth/recovery')} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-rose-400 transition-colors">
-                <KeyRound size={14} /> Recovery Protocol
-              </button>
-            </div>
+        <div className="bg-[#112240] w-full p-8 rounded-3xl shadow-2xl border border-white/5 relative overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#ffd700] to-yellow-500" />
+          
+          <form onSubmit={handleSignIn} className="space-y-6">
+            <input type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t.email} className="w-full bg-[#0A192F] text-white px-5 py-4 rounded-xl border border-white/10 focus:border-[#ffd700] focus:ring-1 focus:ring-[#ffd700] outline-none transition-all text-sm placeholder:text-slate-500 placeholder:uppercase placeholder:text-xs placeholder:tracking-wider" required />
+            <input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={t.password} className="w-full bg-[#0A192F] text-white px-5 py-4 rounded-xl border border-white/10 focus:border-[#ffd700] focus:ring-1 focus:ring-[#ffd700] outline-none transition-all text-sm placeholder:text-slate-500 placeholder:uppercase placeholder:text-xs placeholder:tracking-wider" required />
+            {error && <div className="p-3 bg-red-500/10 text-red-400 text-sm rounded-lg border border-red-500/20 text-center" style={{ fontFamily: lang === 'mm' ? "'Pyidaungsu', sans-serif" : "inherit" }}>{error}</div>}
+            <button type="submit" disabled={loading} className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-xl shadow-[0_0_20px_rgba(37,99,235,0.4)] hover:shadow-[0_0_30px_rgba(37,99,235,0.6)] transition-all disabled:opacity-50 uppercase tracking-[0.2em] text-[11px] flex items-center justify-center gap-2" style={{ fontFamily: lang === 'mm' ? "'Pyidaungsu', sans-serif" : "inherit" }}>{loading ? t.btnLoading : t.btnReady}</button>
           </form>
-        </div>
 
-        {/* 📱 Mobile Terminal Download (3D Shape) */}
-        <div className="mt-8">
-          <button 
-            onClick={() => window.open('/downloads/britium-express.apk')}
-            className="jelly-button w-full acrylic-3d rounded-2xl py-4 flex items-center justify-center gap-3 group border border-emerald-500/20 hover:border-emerald-500/50 transition-all"
-          >
-            <Smartphone size={18} className="text-emerald-500" />
-            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-emerald-400 group-hover:text-emerald-300">
-              Download Mobile Core (APK)
-            </span>
-            <Download size={14} className="text-emerald-500 animate-bounce" />
-          </button>
-        </div>
-
-        {/* Footer Metadata */}
-        <div className="mt-12 flex justify-between px-10 items-center opacity-30">
-          <div className="flex items-center gap-2">
-            <Globe size={14} />
-            <span className="text-[10px] font-black uppercase tracking-widest">Global Network</span>
+          <div className="mt-8 flex justify-between items-center text-[10px] uppercase tracking-widest font-bold text-slate-500">
+             <Link href="/auth/register" className="hover:text-white transition-colors flex items-center gap-1.5"><UserPlus size={12} /> <span style={{ fontFamily: lang === 'mm' ? "'Pyidaungsu', sans-serif" : "inherit" }}>{t.register}</span></Link>
+             <Link href="/auth/recovery" className="hover:text-white transition-colors flex items-center gap-1.5"><KeyRound size={12} /> <span style={{ fontFamily: lang === 'mm' ? "'Pyidaungsu', sans-serif" : "inherit" }}>{t.recovery}</span></Link>
           </div>
-          <span className="text-[10px] font-black uppercase tracking-widest italic">Yangon Node 01</span>
         </div>
+
+        <Link href="/download/apk" className="mt-8 flex items-center gap-2 px-6 py-3 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20 transition-colors text-[10px] font-black uppercase tracking-[0.2em]">
+          <Download size={14} /> <span style={{ fontFamily: lang === 'mm' ? "'Pyidaungsu', sans-serif" : "inherit" }}>{t.download}</span>
+        </Link>
       </div>
     </div>
   );

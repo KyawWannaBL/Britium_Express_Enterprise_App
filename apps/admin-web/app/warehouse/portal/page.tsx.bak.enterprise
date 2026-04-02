@@ -1,0 +1,38 @@
+"use client";
+import { LayoutGrid, Box, ArrowDownLeft, ArrowUpRight, Search } from "lucide-react";
+
+export default function WarehousePortal() {
+  return (
+    <div className="p-8 space-y-8" style={{ fontFamily: "'Pyidaungsu', sans-serif" }}>
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-4xl font-black text-[#0d2c54] uppercase tracking-tighter italic">Warehouse <span className="text-blue-500 not-italic font-light">Hub</span></h1>
+          <p className="text-slate-400 font-bold text-xs uppercase tracking-[0.4em] mt-1">YGN-MAIN-TERMINAL-01</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="bg-white p-6 rounded-[40px] border shadow-sm group hover:bg-[#0d2c54] transition-colors cursor-pointer">
+           <div className="p-4 bg-blue-50 text-blue-600 rounded-2xl w-fit group-hover:bg-white/10 group-hover:text-white mb-4"><ArrowDownLeft size={32}/></div>
+           <h3 className="font-black text-[#0d2c54] group-hover:text-white uppercase tracking-widest text-xs">Inbound Scan</h3>
+           <p className="text-slate-400 text-[10px]">Receiving from Branches</p>
+        </div>
+        <div className="bg-white p-6 rounded-[40px] border shadow-sm group hover:bg-emerald-600 transition-colors cursor-pointer">
+           <div className="p-4 bg-emerald-50 text-emerald-600 rounded-2xl w-fit group-hover:bg-white/10 group-hover:text-white mb-4"><Box size={32}/></div>
+           <h3 className="font-black text-[#0d2c54] group-hover:text-white uppercase tracking-widest text-xs">Shelving</h3>
+           <p className="text-slate-400 text-[10px]">Assign to Racks</p>
+        </div>
+        <div className="bg-white p-6 rounded-[40px] border shadow-sm group hover:bg-amber-500 transition-colors cursor-pointer">
+           <div className="p-4 bg-amber-50 text-amber-600 rounded-2xl w-fit group-hover:bg-white/10 group-hover:text-white mb-4"><ArrowUpRight size={32}/></div>
+           <h3 className="font-black text-[#0d2c54] group-hover:text-white uppercase tracking-widest text-xs">Outbound Dispatch</h3>
+           <p className="text-slate-400 text-[10px]">Handover to Riders</p>
+        </div>
+      </div>
+
+      <div className="bg-slate-100 rounded-[50px] p-12 text-center border-4 border-dashed border-slate-200">
+         <Search className="mx-auto text-slate-300 mb-4" size={48} />
+         <h2 className="text-slate-400 font-black uppercase tracking-widest">Inventory Map Initializing...</h2>
+      </div>
+    </div>
+  );
+}

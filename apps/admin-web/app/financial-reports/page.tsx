@@ -1,134 +1,297 @@
-export const dynamic = "force-dynamic";
-import { MetricCard, SectionTitle, Shell, StatusPill } from "../_components/ui";
-import { financialRows } from "../_lib/mock-data";
-import { getFinancialReportData } from "../../lib/data";
+"use client";
 
-function formatMmk(value: number) {
-  return `${new Intl.NumberFormat("en-US").format(value)} MMK`;
+import React, { useEffect, useMemo, useState } from "react";
+import { RefreshCw, ReceiptText, Wallet, Undo2, FileText } from "lucide-react";
+import {
+  FINANCE_ENDPOINTS,
+  formatDateTime,
+  formatMMK,
+  getItems,
+  toNumber,
+  toText,
+  tryGet,
+} from "@/lib/productionApi";
+
+type InvoiceRow = {
+  id: string;
+  invoiceNo: string;
+  merchant: string;
+  amount: number;
+  status: string;
+  issuedAt: string;
+};
+
+type SettlementRow = {
+  id: string;
+  settlementNo: string;
+  merchant: string;
+  amount: number;
+  status: string;
+  releasedAt: string;
+};
+
+type RefundRow = {
+  id: string;
+  referenceNo: string;
+  merchant: string;
+  amount: number;
+  status: string;
+  createdAt: string;
+};
+
+function normalizeInvoices(input: unknown): InvoiceRow[] {
+  return getItems(input).map((row, index) => ({
+    id: toText(row.id, `i-${index}`),
+    invoiceNo: toText(row.invoice_no, row.code, `INV-${index + 1}`),
+    merchant: toText(row.merchant_name, row.merchant_account_name, row.merchant_account_id, "-"),
+    amount: toNumber(row.total_amount, row.amount, row.invoice_amount),
+    status: toText(row.status, "draft"),
+    issuedAt: toText(row.issued_at, row.created_at, "-"),
+  }));
 }
 
-export default async function FinancialReportsPage() {
-  const live = await getFinancialReportData();
-  const rows = live.branchSummary.length
-    ? live.branchSummary.map((row) => ({
-        branch: row.branch,
-        bookedMmk: row.bookedMmk,
-        codMmk: row.codMmk,
-        settlementMmk: row.settlementMmk,
-        varianceMmk: row.varianceMmk,
-        status: row.varianceMmk === 0 ? "Balanced" : row.varianceMmk < 500000 ? "Review" : "Delayed"
-      }))
-    : financialRows.map((row) => ({
-        branch: row.branch,
-        bookedMmk: Number(row.bookedMmk.replace(/,/g, "")),
-        codMmk: Number(row.codMmk.replace(/,/g, "")),
-        settlementMmk: Number(row.settlementMmk.replace(/,/g, "")),
-        varianceMmk: Number(row.varianceMmk.replace(/,/g, "")),
-        status: row.status
-      }));
+function normalizeSettlements(input: unknown): SettlementRow[] {
+  return getItems(input).map((row, index) => ({
+    id: toText(row.id, `s-${index}`),
+    settlementNo: toText(row.settlement_no, row.code, `SET-${index + 1}`),
+    merchant: toText(row.merchant_name, row.merchant_account_name, row.merchant_account_id, "-"),
+    amount: toNumber(row.total_amount, row.amount, row.release_amount),
+    status: toText(row.status, "prepared"),
+    releasedAt: toText(row.released_at, row.created_at, "-"),
+  }));
+}
 
-  const totals = rows.reduce((acc, row) => {
-    acc.booked += row.bookedMmk;
-    acc.cod += row.codMmk;
-    acc.settled += row.settlementMmk;
-    acc.variance += row.varianceMmk;
-    return acc;
-  }, { booked: 0, cod: 0, settled: 0, variance: 0 });
+function normalizeRefunds(input: unknown): RefundRow[] {
+  return getItems(input).map((row, index) => ({
+    id: toText(row.id, `r-${index}`),
+    referenceNo: toText(row.refund_no, row.reference_no, `REF-${index + 1}`),
+    merchant: toText(row.merchant_name, row.merchant_account_name, row.merchant_account_id, "-"),
+    amount: toNumber(row.amount, row.refund_amount),
+    status: toText(row.status, "submitted"),
+    createdAt: toText(row.created_at, row.updated_at, "-"),
+  }));
+}
 
-  const tone = (value: string) => value === "Balanced" ? "success" : value === "Review" ? "warning" : "danger";
+function badge(status: string) {
+  const s = status.toLowerCase();
+  if (["released", "approved", "paid", "completed"].includes(s)) return "bg-emerald-100 text-emerald-700";
+  if (["prepared", "pending", "submitted", "draft"].includes(s)) return "bg-amber-100 text-amber-700";
+  if (["failed", "rejected", "cancelled"].includes(s)) return "bg-rose-100 text-rose-700";
+  return "bg-slate-100 text-slate-700";
+}
+
+export default function FinancialReportsPage() {
+  const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
+  const [settlements, setSettlements] = useState<SettlementRow[]>([]);
+  const [refunds, setRefunds] = useState<RefundRow[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchAll();
+  }, []);
+
+  async function fetchAll() {
+    setLoading(true);
+    setError(null);
+
+    const [invoiceRes, settlementRes, refundRes] = await Promise.allSettled([
+      tryGet<unknown>(FINANCE_ENDPOINTS.invoices),
+      tryGet<unknown>(FINANCE_ENDPOINTS.settlements),
+      tryGet<unknown>(FINANCE_ENDPOINTS.refunds),
+    ]);
+
+    const errors: string[] = [];
+
+    if (invoiceRes.status === "fulfilled") {
+      setInvoices(normalizeInvoices(invoiceRes.value));
+    } else {
+
+      setInvoices([]);
+    }
+
+    if (settlementRes.status === "fulfilled") {
+      setSettlements(normalizeSettlements(settlementRes.value));
+    } else {
+      setSettlements([]);
+    }
+
+    if (refundRes.status === "fulfilled") {
+      setRefunds(normalizeRefunds(refundRes.value));
+    } else {
+      setRefunds([]);
+    }
+
+    if (invoiceRes.status === "rejected" && settlementRes.status === "rejected" && refundRes.status === "rejected") {
+      setError("Financial APIs are unreachable. Check finance endpoints and NEXT_PUBLIC_API_BASE_URL.");
+    }
+
+    setLoading(false);
+  }
+
+  const totals = useMemo(() => {
+    const invoiced = invoices.reduce((sum, row) => sum + row.amount, 0);
+    const settled = settlements.reduce((sum, row) => sum + row.amount, 0);
+    const refund = refunds.reduce((sum, row) => sum + row.amount, 0);
+
+    return {
+      invoiceCount: invoices.length,
+      settlementCount: settlements.length,
+      totalInvoiced: invoiced,
+      totalSettled: settled,
+      totalRefunds: refund,
+    };
+  }, [invoices, settlements, refunds]);
 
   return (
-    <Shell activeHref="/financial-reports">
-      <section className="hero">
-        <article className="hero-card">
-          <div className="kicker">Financial Reports / ငွေကြေးအစီရင်ခံစာများ</div>
-          <h1 className="hero-title">Settlement, COD, and branch variance reports with live Supabase aggregation.</h1>
-          <p className="hero-copy" style={{ marginTop: 16, maxWidth: 760 }}>
-            This screen now computes branch-level summaries from shipment rows when live data is available. It stays visually polished while becoming materially closer to a production finance console.
-          </p>
-          <div className="action-row">
-            <StatusPill tone={live.mode === "live" ? "success" : "pending"}>
-              {live.mode === "live" ? "Supabase connected" : "Mock mode"}
-            </StatusPill>
-            <span className="badge">COD aware</span>
-            <span className="badge">Export-ready layout</span>
-          </div>
-          <div className="financial-stats" style={{ marginTop: 22 }}>
-            <MetricCard label="Gross booked" value={formatMmk(totals.booked)} meta="Aggregated quoted fees across visible branches" />
-            <MetricCard label="COD captured" value={formatMmk(totals.cod)} meta="Expected customer collections" />
-            <MetricCard label="Settled" value={formatMmk(totals.settled)} meta="Delivered shipments treated as settled in this starter logic" />
-            <MetricCard label="Variance" value={formatMmk(totals.variance)} meta="Use this to drive exception queues and reconciliation" />
-          </div>
-        </article>
+    <div className="min-h-screen bg-[#f7f9fc] p-8">
+      <div className="space-y-2">
+        <p className="text-xs font-bold uppercase tracking-[0.3em] text-slate-400">Administration</p>
+        <h1 className="text-4xl font-black uppercase tracking-tight text-[#0d2c54]">
+          Financial Reports <span className="font-normal">/ ငွေကြေးအစီရင်ခံစာများ</span>
+        </h1>
+        <p className="text-slate-500">
+          Revenue dashboard, merchant billing, settlement release, refund review, and finance operations. /
+          ဝင်ငွေဒက်ရှ်ဘုတ်၊ ကုန်သည်ဘီလ်များ၊ စာရင်းရှင်းမှုများ၊ ပြန်အမ်းငွေစစ်ဆေးမှုနှင့် ငွေကြေးလုပ်ငန်းများ
+        </p>
+      </div>
 
-        <aside className="card">
-          <SectionTitle
-            eyebrow="Report scope"
-            title="Finance stack"
-            copy="Daily cut-off, branch-level variance, COD aging, and leadership-ready summaries can all build on the same query shape."
+      {error && (
+        <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">
+          {error}
+        </div>
+      )}
+
+      <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <StatCard icon={ReceiptText} title="Merchant Invoices" value={`${totals.invoiceCount}`} subtitle="Invoice batches" />
+        <StatCard icon={Wallet} title="Settlements" value={`${totals.settlementCount}`} subtitle="Prepared / released" />
+        <StatCard icon={FileText} title="Total Invoiced" value={formatMMK(totals.totalInvoiced)} subtitle="Gross invoiced amount" />
+        <StatCard icon={Undo2} title="Refund Exposure" value={formatMMK(totals.totalRefunds)} subtitle="Refund / adjustment" />
+      </div>
+
+      <div className="mt-8">
+        <button onClick={fetchAll} className="inline-flex items-center gap-2 rounded-2xl bg-[#0d2c54] px-4 py-3 text-xs font-black uppercase tracking-wider text-white hover:opacity-95">
+          <RefreshCw size={14} />
+          {loading ? "Refreshing..." : "Refresh"}
+        </button>
+      </div>
+
+      <div className="mt-8 grid gap-4 xl:grid-cols-2">
+        <Panel title="Merchant Billing / ကုန်သည်ဘီလ်များ">
+          <DataTable
+            headers={["Invoice", "Merchant", "Amount", "Status", "Issued"]}
+            rows={invoices.map((row) => [
+              row.invoiceNo,
+              row.merchant,
+              formatMMK(row.amount),
+              <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase ${badge(row.status)}`}>{row.status}</span>,
+              formatDateTime(row.issuedAt),
+            ])}
+            emptyText="No invoices found."
           />
-          <div className="stack">
-            <div className="badge">Branch settlement</div>
-            <div className="badge">COD outstanding</div>
-            <div className="badge">Variance review</div>
-            <div className="badge">Audit export</div>
-          </div>
-        </aside>
-      </section>
+        </Panel>
 
-      <section className="page-grid">
-        <div className="page-main">
-          <article className="panel">
-            <SectionTitle
-              eyebrow="Settlement matrix"
-              title="Branch-level reconciliation"
-              copy="This table is now data-driven when the merged Supabase backend is configured."
-              action={<span className="badge">{rows.length} branches</span>}
-            />
-            <div className="table-wrap">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Branch</th>
-                    <th>Booked MMK</th>
-                    <th>COD MMK</th>
-                    <th>Settled MMK</th>
-                    <th>Variance MMK</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((row) => (
-                    <tr key={row.branch}>
-                      <td>{row.branch}</td>
-                      <td>{formatMmk(row.bookedMmk)}</td>
-                      <td>{formatMmk(row.codMmk)}</td>
-                      <td>{formatMmk(row.settlementMmk)}</td>
-                      <td>{formatMmk(row.varianceMmk)}</td>
-                      <td><StatusPill tone={tone(row.status)}>{row.status}</StatusPill></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </article>
-        </div>
+        <Panel title="Merchant Settlements / ကုန်သည်စာရင်းရှင်းမှု">
+          <DataTable
+            headers={["Settlement", "Merchant", "Amount", "Status", "Released"]}
+            rows={settlements.map((row) => [
+              row.settlementNo,
+              row.merchant,
+              formatMMK(row.amount),
+              <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase ${badge(row.status)}`}>{row.status}</span>,
+              formatDateTime(row.releasedAt),
+            ])}
+            emptyText="No settlements found."
+          />
+        </Panel>
+      </div>
 
-        <div className="page-side" style={{ display: "grid", gap: 22 }}>
-          <article className="card">
-            <SectionTitle
-              eyebrow="Interpretation"
-              title="Current starter logic"
-              copy="In this production scaffold, delivered shipments count as settled. You can later replace this with dedicated remittance and settlement tables."
-            />
-            <div className="stack">
-              <div className="tile"><strong>Step 1</strong><p className="muted" style={{ marginTop: 8 }}>Quoted fees roll into booked totals.</p></div>
-              <div className="tile"><strong>Step 2</strong><p className="muted" style={{ marginTop: 8 }}>COD is aggregated by branch-origin grouping.</p></div>
-              <div className="tile"><strong>Step 3</strong><p className="muted" style={{ marginTop: 8 }}>Delivered status marks settled value for the starter dashboard.</p></div>
-            </div>
-          </article>
-        </div>
-      </section>
-    </Shell>
+      <div className="mt-8">
+        <Panel title="Refund / Adjustment Desk / ပြန်အမ်းငွေနှင့် ပြင်ဆင်မှု">
+          <DataTable
+            headers={["Reference", "Merchant", "Amount", "Status", "Created"]}
+            rows={refunds.map((row) => [
+              row.referenceNo,
+              row.merchant,
+              formatMMK(row.amount),
+              <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase ${badge(row.status)}`}>{row.status}</span>,
+              formatDateTime(row.createdAt),
+            ])}
+            emptyText="No refunds found."
+          />
+        </Panel>
+      </div>
+    </div>
+  );
+}
+
+function StatCard({
+  icon: Icon,
+  title,
+  value,
+  subtitle,
+}: {
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  title: string;
+  value: string;
+  subtitle: string;
+}) {
+  return (
+    <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+      <Icon size={24} className="text-[#0d2c54]" />
+      <p className="mt-5 text-xs font-black uppercase tracking-[0.2em] text-slate-400">{title}</p>
+      <p className="mt-4 text-3xl font-black text-[#0d2c54]">{value}</p>
+      <p className="mt-2 text-sm text-slate-500">{subtitle}</p>
+    </div>
+  );
+}
+
+function Panel({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+      <h2 className="text-lg font-black text-[#0d2c54]">{title}</h2>
+      <div className="mt-4">{children}</div>
+    </div>
+  );
+}
+
+function DataTable({
+  headers,
+  rows,
+  emptyText,
+}: {
+  headers: string[];
+  rows: React.ReactNode[][];
+  emptyText: string;
+}) {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-slate-200">
+      <table className="min-w-full text-sm">
+        <thead className="bg-slate-50 text-left text-slate-500">
+          <tr>
+            {headers.map((header) => (
+              <th key={header} className="px-4 py-3 font-black">{header}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.length === 0 ? (
+            <tr>
+              <td colSpan={headers.length} className="px-4 py-8 text-center text-slate-400">
+                {emptyText}
+              </td>
+            </tr>
+          ) : (
+            rows.map((row, idx) => (
+              <tr key={idx} className="border-t border-slate-100">
+                {row.map((cell, cellIdx) => (
+                  <td key={cellIdx} className="px-4 py-3">{cell}</td>
+                ))}
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
   );
 }

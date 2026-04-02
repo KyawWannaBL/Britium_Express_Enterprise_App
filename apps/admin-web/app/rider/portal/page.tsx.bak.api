@@ -1,0 +1,320 @@
+"use client";
+
+import React, { useMemo, useState } from "react";
+import {
+  Bike,
+  CalendarClock,
+  CircleCheckBig,
+  Coins,
+  CreditCard,
+  MapPinned,
+  PhoneCall,
+  ShieldAlert,
+  Wallet,
+  Clock3,
+  PackageCheck,
+  XCircle,
+  Search,
+  Route,
+} from "lucide-react";
+
+type DeliveryRow = {
+  id: string;
+  trackingNo: string;
+  customer: string;
+  phone: string;
+  area: string;
+  status: string;
+  cod: number;
+};
+
+const deliveries: DeliveryRow[] = [
+  { id: "1", trackingNo: "BEX-RID-001", customer: "Kyaw Zayar", phone: "09 44111 001", area: "Tamwe", status: "assigned", cod: 2500 },
+  { id: "2", trackingNo: "BEX-RID-002", customer: "Su Mon", phone: "09 44111 002", area: "Hledan", status: "out_for_delivery", cod: 4200 },
+  { id: "3", trackingNo: "BEX-RID-003", customer: "Mya Mya", phone: "09 44111 003", area: "Dagon", status: "failed_attempt", cod: 0 },
+  { id: "4", trackingNo: "BEX-RID-004", customer: "Aung Min", phone: "09 44111 004", area: "Bahan", status: "delivered", cod: 3300 },
+];
+
+function badgeClass(status: string) {
+  const s = status.toLowerCase();
+  if (["delivered", "completed"].includes(s)) return "bg-emerald-100 text-emerald-700";
+  if (["failed_attempt", "rejected"].includes(s)) return "bg-rose-100 text-rose-700";
+  if (["assigned", "out_for_delivery"].includes(s)) return "bg-amber-100 text-amber-700";
+  return "bg-slate-100 text-slate-700";
+}
+
+function statusText(status: string) {
+  const map: Record<string, string> = {
+    assigned: "ASSIGNED",
+    out_for_delivery: "OUT FOR DELIVERY",
+    failed_attempt: "FAILED ATTEMPT",
+    delivered: "DELIVERED",
+  };
+  return map[status] || status.toUpperCase();
+}
+
+export default function RiderPortalPage() {
+  const [activeTab, setActiveTab] = useState("deliveries");
+  const [search, setSearch] = useState("");
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return deliveries;
+    return deliveries.filter(
+      (row) =>
+        row.trackingNo.toLowerCase().includes(q) ||
+        row.customer.toLowerCase().includes(q) ||
+        row.area.toLowerCase().includes(q)
+    );
+  }, [search]);
+
+  const stats = {
+    assigned: deliveries.filter((x) => x.status === "assigned" || x.status === "out_for_delivery").length,
+    delivered: deliveries.filter((x) => x.status === "delivered").length,
+    failed: deliveries.filter((x) => x.status === "failed_attempt").length,
+    cod: deliveries.reduce((sum, x) => sum + x.cod, 0),
+  };
+
+  return (
+    <div className="min-h-screen bg-[#f7f9fc] p-8">
+      <div className="space-y-2">
+        <p className="text-xs font-bold uppercase tracking-[0.3em] text-slate-400">
+          Field & Logistics
+        </p>
+        <h1 className="text-4xl font-black uppercase tracking-tight text-[#0d2c54]">
+          Rider Portal <span className="font-normal text-blue-500">/ ပို့ဆောင်ရေး (Rider)</span>
+        </h1>
+        <p className="text-slate-500">
+          Delivery tasks, route list, failed attempts, COD collection, wallet earnings, and incident support. /
+          ပို့ဆောင်ရေးတာဝန်များ၊ လမ်းကြောင်းစာရင်း၊ မအောင်မြင်သောပို့ဆောင်မှုများ၊ COD ကောက်ခံမှု၊ ဝင်ငွေစာရင်းနှင့် အကူအညီတင်ပြမှု
+        </p>
+      </div>
+
+      <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <StatCard icon={Bike} title="Assigned Deliveries" mm="ပေးအပ်ထားသောပို့ဆောင်မှု" value={`${stats.assigned}`} />
+        <StatCard icon={CircleCheckBig} title="Completed" mm="ပြီးစီး" value={`${stats.delivered}`} success />
+        <StatCard icon={XCircle} title="Failed Attempts" mm="မအောင်မြင်သောကြိုးစားမှု" value={`${stats.failed}`} danger />
+        <StatCard icon={Wallet} title="COD & Earnings" mm="COD နှင့်ဝင်ငွေ" value={`${new Intl.NumberFormat("en-US").format(stats.cod)} MMK`} dark />
+      </div>
+
+      <div className="mt-8 grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+        <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-black text-[#0d2c54]">Rider Modules / Rider လုပ်ငန်းများ</h2>
+          <div className="mt-4 grid gap-3">
+            <TabButton icon={PackageCheck} active={activeTab === "deliveries"} onClick={() => setActiveTab("deliveries")} en="Assigned Deliveries" mm="ပေးအပ်ထားသောပို့ဆောင်မှု" />
+            <TabButton icon={MapPinned} active={activeTab === "route"} onClick={() => setActiveTab("route")} en="Route List / Map" mm="လမ်းကြောင်းစာရင်း / မြေပုံ" />
+            <TabButton icon={Clock3} active={activeTab === "pickup"} onClick={() => setActiveTab("pickup")} en="Pickup Tasks" mm="လာယူရေးတာဝန်များ" />
+            <TabButton icon={CircleCheckBig} active={activeTab === "confirm"} onClick={() => setActiveTab("confirm")} en="Delivery Confirmation" mm="ပို့ဆောင်မှုအတည်ပြုခြင်း" />
+            <TabButton icon={ShieldAlert} active={activeTab === "failed"} onClick={() => setActiveTab("failed")} en="Failed Attempt Capture" mm="မအောင်မြင်မှုမှတ်တမ်း" />
+            <TabButton icon={Coins} active={activeTab === "cash"} onClick={() => setActiveTab("cash")} en="Cash Collection Entry" mm="ငွေကောက်ခံမှုထည့်သွင်းခြင်း" />
+            <TabButton icon={CreditCard} active={activeTab === "settlement"} onClick={() => setActiveTab("settlement")} en="COD Settlement" mm="COD စာရင်းရှင်းခြင်း" />
+            <TabButton icon={CalendarClock} active={activeTab === "attendance"} onClick={() => setActiveTab("attendance")} en="Attendance / Shift" mm="တက်ရောက်မှု / အလုပ်ချိန်" />
+          </div>
+        </div>
+
+        <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-black text-[#0d2c54]">Active Workspace / လက်ရှိအလုပ်ခန်း</h2>
+          <p className="mt-1 text-sm text-slate-500">{workspaceText(activeTab)}</p>
+
+          {activeTab === "route" ? (
+            <div className="mt-5 rounded-[28px] border-2 border-dashed border-slate-200 bg-slate-50 p-10 text-center">
+              <Route size={48} className="mx-auto text-slate-300" />
+              <p className="mt-4 text-lg font-black text-slate-400">Route Map Initializing... / လမ်းကြောင်းမြေပုံစတင်နေသည်...</p>
+            </div>
+          ) : activeTab === "attendance" ? (
+            <div className="mt-5 grid gap-4 md:grid-cols-2">
+              <AttendanceCard title="Shift Start / အလုပ်စ" value="08:00 AM" />
+              <AttendanceCard title="Shift End / အလုပ်ပြီး" value="06:00 PM" />
+              <AttendanceCard title="Check-In / ရောက်ရှိချိန်" value="07:54 AM" />
+              <AttendanceCard title="Status / အခြေအနေ" value="ON DUTY / တာဝန်ထမ်းဆောင်နေ" />
+            </div>
+          ) : activeTab === "settlement" ? (
+            <div className="mt-5 grid gap-4 md:grid-cols-3">
+              <AttendanceCard title="Collected COD / ကောက်ခံပြီး" value="12,500 MMK" />
+              <AttendanceCard title="Pending Submit / မတင်သွင်းရသေး" value="4,200 MMK" />
+              <AttendanceCard title="Wallet / Wallet" value="18,700 MMK" />
+            </div>
+          ) : (
+            <>
+              <div className="relative mt-5">
+                <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search by tracking / customer / area ... | ကုန်စည်၊ ဖောက်သည်၊ နေရာဖြင့်ရှာရန်"
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-11 pr-4 text-sm outline-none focus:border-[#0d2c54] focus:bg-white"
+                />
+              </div>
+
+              <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
+                <table className="min-w-full text-sm">
+                  <thead className="bg-slate-50 text-left text-slate-500">
+                    <tr>
+                      <th className="px-4 py-3 font-black">Tracking</th>
+                      <th className="px-4 py-3 font-black">Customer</th>
+                      <th className="px-4 py-3 font-black">Area</th>
+                      <th className="px-4 py-3 font-black">COD</th>
+                      <th className="px-4 py-3 font-black">Status</th>
+                      <th className="px-4 py-3 font-black">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.map((row) => (
+                      <tr key={row.id} className="border-t border-slate-100">
+                        <td className="px-4 py-3 font-bold text-[#0d2c54]">{row.trackingNo}</td>
+                        <td className="px-4 py-3">
+                          <div className="font-bold text-slate-700">{row.customer}</div>
+                          <div className="mt-1 text-xs text-slate-400 inline-flex items-center gap-1">
+                            <PhoneCall size={12} />
+                            {row.phone}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">{row.area}</td>
+                        <td className="px-4 py-3 font-black text-emerald-600">
+                          {new Intl.NumberFormat("en-US").format(row.cod)} MMK
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase ${badgeClass(row.status)}`}>
+                            {statusText(row.status)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <button className="rounded-xl bg-[#0d2c54] px-3 py-2 text-[10px] font-black uppercase tracking-wider text-white hover:opacity-95">
+                            Open / ဖွင့်မည်
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-8 grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+        <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-black text-[#0d2c54]">Delivery Actions / ပို့ဆောင်ရေးလုပ်ဆောင်ချက်များ</h2>
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            <QuickAction label="Confirm Delivery / ပို့ဆောင်မှုပြီးကြောင်းအတည်ပြု" />
+            <QuickAction label="Capture Failed Attempt / မအောင်မြင်မှုမှတ်တမ်းတင်" />
+            <QuickAction label="Enter Cash Collection / ငွေကောက်ခံမှုထည့်သွင်း" />
+            <QuickAction label="Start Route / လမ်းကြောင်းစတင်" />
+            <QuickAction label="End Shift / အလုပ်ချိန်ပိတ်မည်" />
+            <QuickAction label="Report Incident / ပြဿနာတင်ပြမည်" />
+          </div>
+        </div>
+
+        <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-black text-[#0d2c54]">Support / Incident Report / အကူအညီနှင့်ပြဿနာတင်ပြမှု</h2>
+          <div className="mt-4 space-y-3">
+            <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">
+              Rider device battery warning received. / Rider စက်ဘက်ထရီသတိပေးချက်ရရှိ
+            </div>
+            <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">
+              Customer requested delayed delivery window. / ဖောက်သည်မှ ပို့ဆောင်ချိန်ရွှေ့ဆိုင်းရန်တောင်းဆို
+            </div>
+            <button className="w-full rounded-2xl bg-rose-50 px-4 py-3 text-left font-black text-rose-700 hover:bg-rose-100">
+              Escalate Support Ticket / အကူအညီလက်မှတ်တင်ပြမည်
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatCard({
+  icon: Icon,
+  title,
+  mm,
+  value,
+  success = false,
+  danger = false,
+  dark = false,
+}: {
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  title: string;
+  mm: string;
+  value: string;
+  success?: boolean;
+  danger?: boolean;
+  dark?: boolean;
+}) {
+  const iconClass = danger ? "text-rose-500" : success ? "text-emerald-500" : dark ? "text-white" : "text-[#0d2c54]";
+  return (
+    <div className={`rounded-[28px] border border-slate-200 p-6 shadow-sm ${dark ? "bg-[#0d2c54] text-white" : "bg-white"}`}>
+      <Icon size={26} className={iconClass} />
+      <p className={`mt-5 text-xs font-black uppercase tracking-[0.2em] ${dark ? "text-white/60" : "text-slate-400"}`}>{title}</p>
+      <p className={`mt-1 text-[11px] font-bold ${dark ? "text-white/70" : "text-slate-500"}`} style={{ fontFamily: "'Pyidaungsu', sans-serif" }}>
+        {mm}
+      </p>
+      <p className={`mt-4 text-4xl font-black ${dark ? "text-[#ffd700]" : "text-[#0d2c54]"}`}>{value}</p>
+    </div>
+  );
+}
+
+function TabButton({
+  icon: Icon,
+  active,
+  onClick,
+  en,
+  mm,
+}: {
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  active: boolean;
+  onClick: () => void;
+  en: string;
+  mm: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`rounded-2xl px-4 py-3 text-left transition ${
+        active ? "bg-[#0d2c54] text-white" : "bg-slate-50 text-slate-700 hover:bg-slate-100"
+      }`}
+    >
+      <div className="flex items-center gap-3">
+        <Icon size={18} />
+        <div>
+          <p className="font-black">{en}</p>
+          <p className={`text-sm ${active ? "text-white/70" : "text-slate-500"}`} style={{ fontFamily: "'Pyidaungsu', sans-serif" }}>
+            {mm}
+          </p>
+        </div>
+      </div>
+    </button>
+  );
+}
+
+function AttendanceCard({ title, value }: { title: string; value: string }) {
+  return (
+    <div className="rounded-2xl bg-slate-50 p-5">
+      <p className="text-sm font-black text-slate-400">{title}</p>
+      <p className="mt-3 text-2xl font-black text-[#0d2c54]">{value}</p>
+    </div>
+  );
+}
+
+function QuickAction({ label }: { label: string }) {
+  return (
+    <button className="rounded-2xl bg-slate-50 px-4 py-3 text-left font-black text-[#0d2c54] hover:bg-slate-100">
+      {label}
+    </button>
+  );
+}
+
+function workspaceText(tab: string) {
+  const map: Record<string, string> = {
+    deliveries: "Assigned deliveries and live task handling. / ပေးအပ်ထားသောပို့ဆောင်မှုများနှင့် လက်ရှိတာဝန်များ",
+    route: "Route list and delivery map. / လမ်းကြောင်းစာရင်းနှင့် ပို့ဆောင်မြေပုံ",
+    pickup: "Pickup task queue for assigned rider. / Rider အတွက် လာယူရေးတာဝန်စာရင်း",
+    confirm: "Confirm successful delivery and POD flow. / အောင်မြင်သောပို့ဆောင်မှုနှင့် POD အတည်ပြုမှု",
+    failed: "Capture failed attempts and reasons. / မအောင်မြင်သောကြိုးစားမှုများနှင့် အကြောင်းရင်းများမှတ်တမ်းတင်",
+    cash: "Record cash and COD collection. / ငွေသားနှင့် COD ကောက်ခံမှုမှတ်တမ်းတင်",
+    settlement: "COD settlement and rider wallet overview. / COD စာရင်းရှင်းမှုနှင့် Rider ဝင်ငွေစာရင်း",
+    attendance: "Attendance, shift start, and end-of-day control. / တက်ရောက်မှု၊ အလုပ်စနှင့် တာဝန်ပြီးချိန်ထိန်းချုပ်မှု",
+  };
+  return map[tab] || "";
+}

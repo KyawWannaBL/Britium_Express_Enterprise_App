@@ -1,0 +1,249 @@
+import { createClient } from "@/lib/supabase/client";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
+
+function splitEnv(name: string, fallback: string[]): string[] {
+  const raw = process.env[name];
+  if (!raw) return fallback;
+  return raw.split(",").map((x) => x.trim()).filter(Boolean);
+}
+
+async function buildHeaders(json = true, idempotency = false) {
+  const supabase = createClient();
+  const headers = new Headers();
+
+  headers.set("Accept", "application/json");
+  headers.set(
+    "X-Request-Id",
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `${Date.now()}`
+  );
+
+  if (json) headers.set("Content-Type", "application/json");
+
+  if (idempotency) {
+    headers.set(
+      "Idempotency-Key",
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-idem`
+    );
+  }
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (session?.access_token) {
+    headers.set("Authorization", `Bearer ${session.access_token}`);
+  }
+
+  return headers;
+}
+
+export async function tryGet<T>(candidates: string[]): Promise<T> {
+  const headers = await buildHeaders(false);
+  const errors: string[] = [];
+
+  for (const path of candidates) {
+    try {
+      const res = await fetch(`${API_BASE}${path}`, {
+        method: "GET",
+        headers,
+        cache: "no-store",
+      });
+
+      if (!res.ok) {
+        let message = `${res.status}`;
+        try {
+          const body = await res.json();
+          message = body?.detail || body?.title || message;
+        } catch {}
+        errors.push(`${path} -> ${message}`);
+        continue;
+      }
+
+      return (await res.json()) as T;
+    } catch (err) {
+      errors.push(`${path} -> ${err instanceof Error ? err.message : "network error"}`);
+    }
+  }
+
+  throw new Error(errors.join("\n"));
+}
+
+export async function tryPost<T>(
+  requests: Array<{ path: string; body?: unknown; idempotency?: boolean }>
+): Promise<T> {
+  const errors: string[] = [];
+
+  for (const req of requests) {
+    try {
+      const headers = await buildHeaders(true, Boolean(req.idempotency));
+      const res = await fetch(`${API_BASE}${req.path}`, {
+        method: "POST",
+        headers,
+        body: req.body ? JSON.stringify(req.body) : undefined,
+      });
+
+      if (!res.ok) {
+        let message = `${res.status}`;
+        try {
+          const body = await res.json();
+          message = body?.detail || body?.title || message;
+        } catch {}
+        errors.push(`${req.path} -> ${message}`);
+        continue;
+      }
+
+      if (res.status === 204) return {} as T;
+      return (await res.json()) as T;
+    } catch (err) {
+      errors.push(`${req.path} -> ${err instanceof Error ? err.message : "network error"}`);
+    }
+  }
+
+  throw new Error(errors.join("\n"));
+}
+
+export function getItems(input: unknown): Record<string, unknown>[] {
+  if (Array.isArray(input)) return input as Record<string, unknown>[];
+  if (input && typeof input === "object") {
+    const obj = input as Record<string, unknown>;
+    if (Array.isArray(obj.items)) return obj.items as Record<string, unknown>[];
+    if (Array.isArray(obj.shipments)) return obj.shipments as Record<string, unknown>[];
+    if (Array.isArray(obj.data)) return obj.data as Record<string, unknown>[];
+    if (obj.data && typeof obj.data === "object") {
+      const nested = obj.data as Record<string, unknown>;
+      if (Array.isArray(nested.items)) return nested.items as Record<string, unknown>[];
+      if (Array.isArray(nested.shipments)) return nested.shipments as Record<string, unknown>[];
+    }
+  }
+  return [];
+}
+
+export function toText(...values: unknown[]): string {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return "-";
+}
+
+export function toNumber(...values: unknown[]): number {
+  for (const value of values) {
+    if (typeof value === "number" && Number.isFinite(value)) return value;
+    if (typeof value === "string" && value.trim()) {
+      const parsed = Number(value);
+      if (Number.isFinite(parsed)) return parsed;
+    }
+  }
+  return 0;
+}
+
+export function formatMMK(value: number): string {
+  return `${new Intl.NumberFormat("en-US", {
+    maximumFractionDigits: 0,
+  }).format(Number.isFinite(value) ? value : 0)} MMK`;
+}
+
+export function formatDateTime(value?: string | null): string {
+  if (!value || value === "-") return "-";
+  return value.replace("T", " ").replace("Z", "").slice(0, 16);
+}
+
+export function fillPath(path: string, replacements: Record<string, string>) {
+  let out = path;
+  for (const [key, value] of Object.entries(replacements)) {
+    out = out.replaceAll(`{${key}}`, encodeURIComponent(value));
+  }
+  return out;
+}
+
+export function withReplacements(
+  candidates: string[],
+  replacements: Record<string, string>
+) {
+  return candidates.map((path) => fillPath(path, replacements));
+}
+
+export function appendQuery(
+  candidates: string[],
+  params: Record<string, string | number | null | undefined>
+) {
+  const q = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value === null || value === undefined || `${value}`.trim() === "") continue;
+    q.set(key, String(value));
+  }
+
+  const query = q.toString();
+  if (!query) return [...candidates];
+
+  return candidates.map((path) =>
+    path.includes("?") ? `${path}&${query}` : `${path}?${query}`
+  );
+}
+
+function env(name: string, fallback: string[]) {
+  return splitEnv(name, fallback);
+}
+
+export const WAY_ENDPOINTS = {
+  list: env("NEXT_PUBLIC_WAY_LIST_ENDPOINTS", [
+    "/api/v1/shipments",
+    "/api/shipments",
+  ]),
+};
+
+export const FINANCE_ENDPOINTS = {
+  invoices: env("NEXT_PUBLIC_FINANCE_INVOICE_ENDPOINTS", [
+    "/api/v1/merchant-invoices",
+    "/api/merchant-invoices",
+  ]),
+  settlements: env("NEXT_PUBLIC_FINANCE_SETTLEMENT_ENDPOINTS", [
+    "/api/v1/merchant-settlements",
+    "/api/merchant-settlements",
+  ]),
+  refunds: env("NEXT_PUBLIC_FINANCE_REFUND_ENDPOINTS", [
+    "/api/v1/refunds",
+    "/api/refunds",
+  ]),
+};
+
+export const BRANCH_ENDPOINTS = {
+  branches: env("NEXT_PUBLIC_BRANCH_LIST_ENDPOINTS", [
+    "/api/v1/branches",
+    "/api/branches",
+  ]),
+  shipments: env("NEXT_PUBLIC_BRANCH_SHIPMENT_ENDPOINTS", [
+    "/api/v1/shipments",
+    "/api/shipments",
+  ]),
+};
+
+export const MERCHANT_ENDPOINTS = {
+  shipments: env("NEXT_PUBLIC_MERCHANT_SHIPMENT_ENDPOINTS", [
+    "/api/v1/merchant/shipments",
+    "/api/merchant/shipments",
+  ]),
+  webhooks: env("NEXT_PUBLIC_MERCHANT_WEBHOOK_ENDPOINTS", [
+    "/api/v1/merchant/webhooks",
+    "/api/merchant/webhooks",
+  ]),
+};
+
+export const TRACK_ENDPOINTS = {
+  summary: env("NEXT_PUBLIC_PUBLIC_TRACK_SUMMARY_ENDPOINTS", [
+    "/api/v1/public/track/{trackingNo}",
+    "/api/public/track/{trackingNo}",
+  ]),
+  timeline: env("NEXT_PUBLIC_PUBLIC_TRACK_TIMELINE_ENDPOINTS", [
+    "/api/v1/public/track/{trackingNo}/timeline",
+    "/api/public/track/{trackingNo}/timeline",
+  ]),
+  pod: env("NEXT_PUBLIC_PUBLIC_TRACK_POD_ENDPOINTS", [
+    "/api/v1/public/track/{trackingNo}/pod",
+    "/api/public/track/{trackingNo}/pod",
+  ]),
+};

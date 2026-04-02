@@ -1,0 +1,349 @@
+"use client";
+
+import React, { useMemo, useState } from "react";
+import {
+  ArrowDownToLine,
+  ArrowUpToLine,
+  Boxes,
+  ClipboardList,
+  PackageSearch,
+  ScanLine,
+  ShieldAlert,
+  Truck,
+  Warehouse,
+  Workflow,
+  CircleAlert,
+  FileStack,
+  Clock3,
+} from "lucide-react";
+
+type ScanRow = {
+  id: string;
+  trackingNo: string;
+  operation: string;
+  zone: string;
+  status: string;
+  operator: string;
+  time: string;
+};
+
+type ManifestRow = {
+  id: string;
+  manifestNo: string;
+  route: string;
+  shipmentCount: number;
+  status: string;
+  vehicle: string;
+};
+
+const scanRows: ScanRow[] = [
+  { id: "1", trackingNo: "BEX-YGN-1001", operation: "Inbound Receive", zone: "Dock A", status: "verified", operator: "Ko Min", time: "08:15" },
+  { id: "2", trackingNo: "BEX-YGN-1002", operation: "Sorting", zone: "Cage B-12", status: "pending", operator: "Su Su", time: "08:21" },
+  { id: "3", trackingNo: "BEX-YGN-1003", operation: "Bag In", zone: "Bag Zone", status: "verified", operator: "Aung Aung", time: "08:29" },
+  { id: "4", trackingNo: "BEX-YGN-1004", operation: "Damage Desk", zone: "Exception", status: "exception", operator: "Nandar", time: "08:33" },
+  { id: "5", trackingNo: "BEX-YGN-1005", operation: "Dispatch Prep", zone: "Outbound", status: "verified", operator: "Htet", time: "08:42" },
+];
+
+const manifests: ManifestRow[] = [
+  { id: "1", manifestNo: "MAN-YGN-MDY-001", route: "YGN → MDY", shipmentCount: 42, status: "ready", vehicle: "6N/1234" },
+  { id: "2", manifestNo: "MAN-YGN-BGO-002", route: "YGN → BGO", shipmentCount: 18, status: "loading", vehicle: "7K/9921" },
+  { id: "3", manifestNo: "MAN-YGN-NPT-003", route: "YGN → NPT", shipmentCount: 25, status: "dispatched", vehicle: "9L/4411" },
+];
+
+const handoverLogs = [
+  "Morning team handed over 128 shipments. / မနက်ပိုင်းအသင်းမှ ကုန်စည် ၁၂၈ ခုလွှဲပြောင်းပြီး",
+  "2 damaged parcels moved to exception desk. / ပျက်စီးကုန် ၂ ခုကို ပြဿနာဖြေရှင်းခန်းသို့ရွှေ့ထားသည်",
+  "Outbound dispatch delayed for BGO linehaul. / ပဲခူးလိုင်းဟောထွက်ခွာမှုနောက်ကျနေသည်",
+];
+
+function badgeClass(status: string) {
+  const s = status.toLowerCase();
+  if (["verified", "ready", "dispatched"].includes(s)) return "bg-emerald-100 text-emerald-700";
+  if (["pending", "loading"].includes(s)) return "bg-amber-100 text-amber-700";
+  if (["exception", "damaged", "misroute"].includes(s)) return "bg-rose-100 text-rose-700";
+  return "bg-slate-100 text-slate-700";
+}
+
+export default function WarehousePortalPage() {
+  const [activeTab, setActiveTab] = useState("inbound");
+  const [search, setSearch] = useState("");
+
+  const filteredScans = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return scanRows;
+    return scanRows.filter(
+      (row) =>
+        row.trackingNo.toLowerCase().includes(q) ||
+        row.operation.toLowerCase().includes(q) ||
+        row.zone.toLowerCase().includes(q)
+    );
+  }, [search]);
+
+  return (
+    <div className="min-h-screen bg-[#f7f9fc] p-8">
+      <div className="space-y-2">
+        <p className="text-xs font-bold uppercase tracking-[0.3em] text-slate-400">
+          Logistics Operations
+        </p>
+        <h1 className="text-4xl font-black uppercase tracking-tight text-[#0d2c54]">
+          Warehouse Hub <span className="font-normal text-blue-500">/ ဂိုဒေါင်စီမံခန့်ခွဲမှု</span>
+        </h1>
+        <p className="text-slate-500">
+          Inbound receiving, sorting, scan verification, dispatch preparation, manifest control, and exception handling. /
+          ဝင်ကုန်လက်ခံခြင်း၊ အမျိုးအစားခွဲခြင်း၊ စကင်န်အတည်ပြုခြင်း၊ ထွက်ကုန်ပြင်ဆင်ခြင်း၊ မန်နီဖက်ထိန်းချုပ်ခြင်းနှင့် ပြဿနာဖြေရှင်းမှု
+        </p>
+      </div>
+
+      <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <StatCard icon={ArrowDownToLine} title="Inbound Receiving" mm="ဝင်ကုန်လက်ခံခြင်း" value="128" />
+        <StatCard icon={Boxes} title="Bag / Sack Mgmt" mm="အိတ် / ဆာ့ခ်စီမံမှု" value="19" />
+        <StatCard icon={Workflow} title="Sorting Queue" mm="အမျိုးအစားခွဲစာရင်း" value="36" />
+        <StatCard icon={ArrowUpToLine} title="Dispatch Ready" mm="ထွက်ကုန်အဆင်သင့်" value="24" />
+        <StatCard icon={ShieldAlert} title="Exceptions" mm="ပြဿနာများ" value="3" danger />
+      </div>
+
+      <div className="mt-8 grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+        <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-black text-[#0d2c54]">Warehouse Modules / ဂိုဒေါင်လုပ်ငန်းများ</h2>
+          <div className="mt-4 grid gap-3">
+            <TabButton icon={ArrowDownToLine} active={activeTab === "inbound"} onClick={() => setActiveTab("inbound")} en="Inbound Receiving" mm="ဝင်ကုန်လက်ခံခြင်း" />
+            <TabButton icon={Boxes} active={activeTab === "bags"} onClick={() => setActiveTab("bags")} en="Bag / Sack Management" mm="အိတ် / ဆာ့ခ်စီမံခန့်ခွဲမှု" />
+            <TabButton icon={Workflow} active={activeTab === "sorting"} onClick={() => setActiveTab("sorting")} en="Sorting Queue" mm="အမျိုးအစားခွဲစာရင်း" />
+            <TabButton icon={ScanLine} active={activeTab === "scan"} onClick={() => setActiveTab("scan")} en="Scan & Verify" mm="စကင်န်နှင့်အတည်ပြုခြင်း" />
+            <TabButton icon={Truck} active={activeTab === "dispatch"} onClick={() => setActiveTab("dispatch")} en="Dispatch Preparation" mm="ထွက်ကုန်ပြင်ဆင်ခြင်း" />
+            <TabButton icon={FileStack} active={activeTab === "manifest"} onClick={() => setActiveTab("manifest")} en="Manifest Creation" mm="မန်နီဖက်ဖန်တီးခြင်း" />
+            <TabButton icon={Warehouse} active={activeTab === "inventory"} onClick={() => setActiveTab("inventory")} en="Inventory / Cage View" mm="စတော့ / ကေ့ခ်ျမြင်ကွင်း" />
+            <TabButton icon={CircleAlert} active={activeTab === "exception"} onClick={() => setActiveTab("exception")} en="Misroute / Damage Desk" mm="လမ်းကြောင်းမှား / ပျက်စီးကုန်ခန်း" />
+          </div>
+        </div>
+
+        <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-black text-[#0d2c54]">Active Workspace / လက်ရှိအလုပ်ခန်း</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            {workspaceSubtitle(activeTab)}
+          </p>
+
+          <div className="mt-5">
+            {activeTab === "manifest" ? (
+              <div className="overflow-hidden rounded-2xl border border-slate-200">
+                <table className="min-w-full text-sm">
+                  <thead className="bg-slate-50 text-left text-slate-500">
+                    <tr>
+                      <th className="px-4 py-3 font-black">Manifest</th>
+                      <th className="px-4 py-3 font-black">Route</th>
+                      <th className="px-4 py-3 font-black">Shipments</th>
+                      <th className="px-4 py-3 font-black">Vehicle</th>
+                      <th className="px-4 py-3 font-black">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {manifests.map((row) => (
+                      <tr key={row.id} className="border-t border-slate-100">
+                        <td className="px-4 py-3 font-bold text-[#0d2c54]">{row.manifestNo}</td>
+                        <td className="px-4 py-3">{row.route}</td>
+                        <td className="px-4 py-3">{row.shipmentCount}</td>
+                        <td className="px-4 py-3">{row.vehicle}</td>
+                        <td className="px-4 py-3">
+                          <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase ${badgeClass(row.status)}`}>
+                            {row.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : activeTab === "inventory" ? (
+              <div className="grid gap-4 md:grid-cols-3">
+                <InventoryCard zone="Cage A1" count="32" status="Available / ရရှိနိုင်" />
+                <InventoryCard zone="Cage B4" count="17" status="Sorting / ခွဲခြမ်းနေ" />
+                <InventoryCard zone="Dock C2" count="11" status="Dispatch / ထွက်ရန်" />
+              </div>
+            ) : activeTab === "exception" ? (
+              <div className="space-y-3">
+                <ExceptionRow code="MISROUTE-001" text="Shipment routed to wrong branch. / မှားယွင်းသောဌာနခွဲသို့ပို့ထားသည်" />
+                <ExceptionRow code="DAMAGE-004" text="Outer pack damaged during unload. / ချွတ်ချရာတွင် ထုပ်ပိုးပျက်စီးခဲ့သည်" />
+                <ExceptionRow code="MISSING-002" text="Bag scan mismatch detected. / အိတ်စကင်န်မကိုက်ညီမှုတွေ့ရှိ" />
+              </div>
+            ) : (
+              <>
+                <div className="relative">
+                  <PackageSearch size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search by tracking / operation / zone ... | ကုန်စည်နံပါတ်၊ လုပ်ငန်းစဉ်၊ ဇုန်ဖြင့်ရှာရန်"
+                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-11 pr-4 text-sm outline-none focus:border-[#0d2c54] focus:bg-white"
+                  />
+                </div>
+
+                <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
+                  <table className="min-w-full text-sm">
+                    <thead className="bg-slate-50 text-left text-slate-500">
+                      <tr>
+                        <th className="px-4 py-3 font-black">Tracking</th>
+                        <th className="px-4 py-3 font-black">Operation</th>
+                        <th className="px-4 py-3 font-black">Zone</th>
+                        <th className="px-4 py-3 font-black">Operator</th>
+                        <th className="px-4 py-3 font-black">Time</th>
+                        <th className="px-4 py-3 font-black">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredScans.map((row) => (
+                        <tr key={row.id} className="border-t border-slate-100">
+                          <td className="px-4 py-3 font-bold text-[#0d2c54]">{row.trackingNo}</td>
+                          <td className="px-4 py-3">{row.operation}</td>
+                          <td className="px-4 py-3">{row.zone}</td>
+                          <td className="px-4 py-3">{row.operator}</td>
+                          <td className="px-4 py-3">{row.time}</td>
+                          <td className="px-4 py-3">
+                            <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase ${badgeClass(row.status)}`}>
+                              {row.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-8 grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+        <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex items-center gap-3">
+            <ClipboardList size={20} className="text-[#0d2c54]" />
+            <h2 className="text-lg font-black text-[#0d2c54]">Load / Unload Control & Shift Handover / တင်ခြင်းချခြင်းနှင့် အလှည့်လွှဲပြောင်းမှု</h2>
+          </div>
+          <div className="mt-4 space-y-3">
+            {handoverLogs.map((log, idx) => (
+              <div key={idx} className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">
+                {log}
+              </div>
+            ))}
+          </div>
+          <button className="mt-5 rounded-2xl bg-[#0d2c54] px-5 py-3 text-sm font-black uppercase tracking-wider text-white hover:opacity-95">
+            Record Shift Handover / အလှည့်လွှဲပြောင်းမှတ်တမ်းတင်မည်
+          </button>
+        </div>
+
+        <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex items-center gap-3">
+            <Clock3 size={20} className="text-amber-500" />
+            <h2 className="text-lg font-black text-[#0d2c54]">Dispatch Preparation / ထွက်ကုန်ပြင်ဆင်မှု</h2>
+          </div>
+          <div className="mt-4 grid gap-3">
+            <QuickAction label="Create Manifest / မန်နီဖက်ဖန်တီးမည်" />
+            <QuickAction label="Load Vehicle / ယာဉ်တင်မည်" />
+            <QuickAction label="Unload Vehicle / ယာဉ်ချမည်" />
+            <QuickAction label="Verify Bag Seal / အိတ်ပိတ်တံဆိပ်စစ်မည်" />
+            <QuickAction label="Dispatch Handover / ပို့ဆောင်လွှဲပြောင်းမည်" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatCard({
+  icon: Icon,
+  title,
+  mm,
+  value,
+  danger = false,
+}: {
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  title: string;
+  mm: string;
+  value: string;
+  danger?: boolean;
+}) {
+  return (
+    <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+      <Icon size={26} className={danger ? "text-rose-500" : "text-[#0d2c54]"} />
+      <p className="mt-5 text-xs font-black uppercase tracking-[0.2em] text-slate-400">{title}</p>
+      <p className="mt-1 text-[11px] font-bold text-slate-500" style={{ fontFamily: "'Pyidaungsu', sans-serif" }}>
+        {mm}
+      </p>
+      <p className="mt-4 text-4xl font-black text-[#0d2c54]">{value}</p>
+    </div>
+  );
+}
+
+function TabButton({
+  icon: Icon,
+  active,
+  onClick,
+  en,
+  mm,
+}: {
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  active: boolean;
+  onClick: () => void;
+  en: string;
+  mm: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`rounded-2xl px-4 py-3 text-left transition ${
+        active ? "bg-[#0d2c54] text-white" : "bg-slate-50 text-slate-700 hover:bg-slate-100"
+      }`}
+    >
+      <div className="flex items-center gap-3">
+        <Icon size={18} />
+        <div>
+          <p className="font-black">{en}</p>
+          <p className={`text-sm ${active ? "text-white/70" : "text-slate-500"}`} style={{ fontFamily: "'Pyidaungsu', sans-serif" }}>
+            {mm}
+          </p>
+        </div>
+      </div>
+    </button>
+  );
+}
+
+function InventoryCard({ zone, count, status }: { zone: string; count: string; status: string }) {
+  return (
+    <div className="rounded-2xl bg-slate-50 p-5">
+      <p className="text-sm font-black text-[#0d2c54]">{zone}</p>
+      <p className="mt-3 text-4xl font-black text-[#0d2c54]">{count}</p>
+      <p className="mt-2 text-sm text-slate-500">{status}</p>
+    </div>
+  );
+}
+
+function ExceptionRow({ code, text }: { code: string; text: string }) {
+  return (
+    <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4">
+      <p className="font-black text-rose-700">{code}</p>
+      <p className="mt-1 text-sm text-rose-600">{text}</p>
+    </div>
+  );
+}
+
+function QuickAction({ label }: { label: string }) {
+  return (
+    <button className="rounded-2xl bg-slate-50 px-4 py-3 text-left font-black text-[#0d2c54] hover:bg-slate-100">
+      {label}
+    </button>
+  );
+}
+
+function workspaceSubtitle(tab: string) {
+  const map: Record<string, string> = {
+    inbound: "Inbound receive queue and verification desk. / ဝင်ကုန်လက်ခံစာရင်းနှင့် အတည်ပြုခန်း",
+    bags: "Bag sealing, bag mapping, and sack control. / အိတ်ပိတ်ခြင်း၊ အိတ်ချိတ်ဆက်ခြင်းနှင့် ဆာ့ခ်ထိန်းချုပ်မှု",
+    sorting: "Sorting lanes, rack assignment, and scan queue. / ခွဲခြမ်းလမ်းကြောင်း၊ ရက်ခ်သတ်မှတ်ခြင်းနှင့် စကင်န်စာရင်း",
+    scan: "Scan and verify every package movement. / ကုန်စည်လှုပ်ရှားမှုတိုင်းကို စကင်န်နှင့်အတည်ပြု",
+    dispatch: "Prepare outbound shipments before release. / ထွက်ကုန်မထုတ်မီ ပြင်ဆင်ရန်",
+    manifest: "Create and monitor outbound manifests. / ထွက်ကုန်မန်နီဖက်များဖန်တီးပြီးစောင့်ကြည့်ရန်",
+    inventory: "View cages, bins, and current stock positions. / ကေ့ခ်ျ၊ ဘင်နှင့် လက်ရှိစတော့တည်နေရာများကြည့်ရန်",
+    exception: "Review misroute, damage, and mismatch cases. / လမ်းကြောင်းမှား၊ ပျက်စီးမှုနှင့် မကိုက်ညီမှုများစစ်ဆေးရန်",
+  };
+  return map[tab] || "";
+}

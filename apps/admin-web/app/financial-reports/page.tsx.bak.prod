@@ -1,0 +1,299 @@
+"use client";
+
+import React, { useEffect, useMemo, useState } from "react";
+import { RefreshCw, ReceiptText, Wallet, Undo2, FileText } from "lucide-react";
+import {
+  FINANCE_ENDPOINTS,
+  formatDateTime,
+  formatMMK,
+  getItems,
+  toNumber,
+  toText,
+  tryGet,
+} from "@/lib/productionApi";
+
+type InvoiceRow = {
+  id: string;
+  invoiceNo: string;
+  merchant: string;
+  amount: number;
+  status: string;
+  issuedAt: string;
+};
+
+type SettlementRow = {
+  id: string;
+  settlementNo: string;
+  merchant: string;
+  amount: number;
+  status: string;
+  releasedAt: string;
+};
+
+type RefundRow = {
+  id: string;
+  referenceNo: string;
+  merchant: string;
+  amount: number;
+  status: string;
+  createdAt: string;
+};
+
+function normalizeInvoices(input: unknown): InvoiceRow[] {
+  return getItems(input).map((row, index) => ({
+    id: toText(row.id, `i-${index}`),
+    invoiceNo: toText(row.invoice_no, row.code, `INV-${index + 1}`),
+    merchant: toText(row.merchant_name, row.merchant_account_name, row.merchant_account_id, "-"),
+    amount: toNumber(row.total_amount, row.amount, row.invoice_amount),
+    status: toText(row.status, "draft"),
+    issuedAt: toText(row.issued_at, row.created_at, "-"),
+  }));
+}
+
+function normalizeSettlements(input: unknown): SettlementRow[] {
+  return getItems(input).map((row, index) => ({
+    id: toText(row.id, `s-${index}`),
+    settlementNo: toText(row.settlement_no, row.code, `SET-${index + 1}`),
+    merchant: toText(row.merchant_name, row.merchant_account_name, row.merchant_account_id, "-"),
+    amount: toNumber(row.total_amount, row.amount, row.release_amount),
+    status: toText(row.status, "prepared"),
+    releasedAt: toText(row.released_at, row.created_at, "-"),
+  }));
+}
+
+function normalizeRefunds(input: unknown): RefundRow[] {
+  return getItems(input).map((row, index) => ({
+    id: toText(row.id, `r-${index}`),
+    referenceNo: toText(row.refund_no, row.reference_no, `REF-${index + 1}`),
+    merchant: toText(row.merchant_name, row.merchant_account_name, row.merchant_account_id, "-"),
+    amount: toNumber(row.amount, row.refund_amount),
+    status: toText(row.status, "submitted"),
+    createdAt: toText(row.created_at, row.updated_at, "-"),
+  }));
+}
+
+function badge(status: string) {
+  const s = status.toLowerCase();
+  if (["released", "approved", "paid", "completed"].includes(s)) return "bg-emerald-100 text-emerald-700";
+  if (["prepared", "pending", "submitted", "draft"].includes(s)) return "bg-amber-100 text-amber-700";
+  if (["failed", "rejected", "cancelled"].includes(s)) return "bg-rose-100 text-rose-700";
+  return "bg-slate-100 text-slate-700";
+}
+
+export default function FinancialReportsPage() {
+  const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
+  const [settlements, setSettlements] = useState<SettlementRow[]>([]);
+  const [refunds, setRefunds] = useState<RefundRow[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchAll();
+  }, []);
+
+  async function fetchAll() {
+    setLoading(true);
+    setError(null);
+
+    const [invoiceRes, settlementRes, refundRes] = await Promise.allSettled([
+      tryGet<unknown>(FINANCE_ENDPOINTS.invoices),
+      tryGet<unknown>(FINANCE_ENDPOINTS.settlements),
+      tryGet<unknown>(FINANCE_ENDPOINTS.refunds),
+    ]);
+
+    const errors: string[] = [];
+
+    if (invoiceRes.status === "fulfilled") {
+      setInvoices(normalizeInvoices(invoiceRes.value));
+    } else {
+      errors.push("Invoices API unavailable");
+      setInvoices([]);
+    }
+
+    if (settlementRes.status === "fulfilled") {
+      setSettlements(normalizeSettlements(settlementRes.value));
+    } else {
+      errors.push("Settlements API unavailable");
+      setSettlements([]);
+    }
+
+    if (refundRes.status === "fulfilled") {
+      setRefunds(normalizeRefunds(refundRes.value));
+    } else {
+      errors.push("Refunds API unavailable");
+      setRefunds([]);
+    }
+
+    if (errors.length === 3) {
+      setError("Financial APIs are unreachable. Check finance endpoints and NEXT_PUBLIC_API_BASE_URL.");
+    }
+
+    setLoading(false);
+  }
+
+  const totals = useMemo(() => {
+    const invoiced = invoices.reduce((sum, row) => sum + row.amount, 0);
+    const settled = settlements.reduce((sum, row) => sum + row.amount, 0);
+    const refund = refunds.reduce((sum, row) => sum + row.amount, 0);
+
+    return {
+      invoiceCount: invoices.length,
+      settlementCount: settlements.length,
+      totalInvoiced: invoiced,
+      totalSettled: settled,
+      totalRefunds: refund,
+    };
+  }, [invoices, settlements, refunds]);
+
+  return (
+    <div className="min-h-screen bg-[#f7f9fc] p-8">
+      <div className="space-y-2">
+        <p className="text-xs font-bold uppercase tracking-[0.3em] text-slate-400">Administration</p>
+        <h1 className="text-4xl font-black uppercase tracking-tight text-[#0d2c54]">
+          Financial Reports <span className="font-normal">/ ငွေကြေးအစီရင်ခံစာများ</span>
+        </h1>
+        <p className="text-slate-500">
+          Revenue dashboard, merchant billing, settlement release, refund review, and finance operations. /
+          ဝင်ငွေဒက်ရှ်ဘုတ်၊ ကုန်သည်ဘီလ်များ၊ စာရင်းရှင်းမှုများ၊ ပြန်အမ်းငွေစစ်ဆေးမှုနှင့် ငွေကြေးလုပ်ငန်းများ
+        </p>
+      </div>
+
+      {error && (
+        <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">
+          {error}
+        </div>
+      )}
+
+      <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <StatCard icon={ReceiptText} title="Merchant Invoices" value={`${totals.invoiceCount}`} subtitle="Invoice batches" />
+        <StatCard icon={Wallet} title="Settlements" value={`${totals.settlementCount}`} subtitle="Prepared / released" />
+        <StatCard icon={FileText} title="Total Invoiced" value={formatMMK(totals.totalInvoiced)} subtitle="Gross invoiced amount" />
+        <StatCard icon={Undo2} title="Refund Exposure" value={formatMMK(totals.totalRefunds)} subtitle="Refund / adjustment" />
+      </div>
+
+      <div className="mt-8">
+        <button onClick={fetchAll} className="inline-flex items-center gap-2 rounded-2xl bg-[#0d2c54] px-4 py-3 text-xs font-black uppercase tracking-wider text-white hover:opacity-95">
+          <RefreshCw size={14} />
+          {loading ? "Refreshing..." : "Refresh"}
+        </button>
+      </div>
+
+      <div className="mt-8 grid gap-4 xl:grid-cols-2">
+        <Panel title="Merchant Billing / ကုန်သည်ဘီလ်များ">
+          <DataTable
+            headers={["Invoice", "Merchant", "Amount", "Status", "Issued"]}
+            rows={invoices.map((row) => [
+              row.invoiceNo,
+              row.merchant,
+              formatMMK(row.amount),
+              <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase ${badge(row.status)}`}>{row.status}</span>,
+              formatDateTime(row.issuedAt),
+            ])}
+            emptyText="No invoices found."
+          />
+        </Panel>
+
+        <Panel title="Merchant Settlements / ကုန်သည်စာရင်းရှင်းမှု">
+          <DataTable
+            headers={["Settlement", "Merchant", "Amount", "Status", "Released"]}
+            rows={settlements.map((row) => [
+              row.settlementNo,
+              row.merchant,
+              formatMMK(row.amount),
+              <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase ${badge(row.status)}`}>{row.status}</span>,
+              formatDateTime(row.releasedAt),
+            ])}
+            emptyText="No settlements found."
+          />
+        </Panel>
+      </div>
+
+      <div className="mt-8">
+        <Panel title="Refund / Adjustment Desk / ပြန်အမ်းငွေနှင့် ပြင်ဆင်မှု">
+          <DataTable
+            headers={["Reference", "Merchant", "Amount", "Status", "Created"]}
+            rows={refunds.map((row) => [
+              row.referenceNo,
+              row.merchant,
+              formatMMK(row.amount),
+              <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase ${badge(row.status)}`}>{row.status}</span>,
+              formatDateTime(row.createdAt),
+            ])}
+            emptyText="No refunds found."
+          />
+        </Panel>
+      </div>
+    </div>
+  );
+}
+
+function StatCard({
+  icon: Icon,
+  title,
+  value,
+  subtitle,
+}: {
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  title: string;
+  value: string;
+  subtitle: string;
+}) {
+  return (
+    <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+      <Icon size={24} className="text-[#0d2c54]" />
+      <p className="mt-5 text-xs font-black uppercase tracking-[0.2em] text-slate-400">{title}</p>
+      <p className="mt-4 text-3xl font-black text-[#0d2c54]">{value}</p>
+      <p className="mt-2 text-sm text-slate-500">{subtitle}</p>
+    </div>
+  );
+}
+
+function Panel({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+      <h2 className="text-lg font-black text-[#0d2c54]">{title}</h2>
+      <div className="mt-4">{children}</div>
+    </div>
+  );
+}
+
+function DataTable({
+  headers,
+  rows,
+  emptyText,
+}: {
+  headers: string[];
+  rows: React.ReactNode[][];
+  emptyText: string;
+}) {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-slate-200">
+      <table className="min-w-full text-sm">
+        <thead className="bg-slate-50 text-left text-slate-500">
+          <tr>
+            {headers.map((header) => (
+              <th key={header} className="px-4 py-3 font-black">{header}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.length === 0 ? (
+            <tr>
+              <td colSpan={headers.length} className="px-4 py-8 text-center text-slate-400">
+                {emptyText}
+              </td>
+            </tr>
+          ) : (
+            rows.map((row, idx) => (
+              <tr key={idx} className="border-t border-slate-100">
+                {row.map((cell, cellIdx) => (
+                  <td key={cellIdx} className="px-4 py-3">{cell}</td>
+                ))}
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}

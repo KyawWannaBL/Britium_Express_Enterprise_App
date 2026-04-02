@@ -1,93 +1,33 @@
 import Link from "next/link";
-import { Shell, SectionTitle, StatusPill } from "../../_components/ui";
-import { batchWaybills, printFormats } from "../../_lib/waybill";
+import { Shell } from "@/app/_components/ui";
 
 export default function PrintStudioPage() {
   return (
     <Shell activeHref="/create-delivery">
-      <section className="hero">
-        <article className="hero-card">
-          <div className="kicker">Waybill Print Studio / အညွှန်းပုံနှိပ်စက်ခန်း</div>
-          <h1 className="hero-title">Production-ready print routing for thermal labels, A4, A5, single, and batch output.</h1>
-          <p className="hero-copy" style={{ marginTop: 16, maxWidth: 760 }}>
-            This studio wires the exact Britium sample layout into a reusable print pipeline. Operators can print one waybill,
-            two 4 x 3 labels on a 4 x 6 sheet, or paginated A4 and A5 batches from the same shipment payload.
-          </p>
-          <div className="action-row">
-            <Link className="btn btn-primary" href="/print/waybill?format=4x6_single">Open 4 x 6 preview</Link>
-            <Link className="btn btn-secondary" href="/print/waybill?format=4x3_two_up_on_4x6">Open 4 x 3 two-up</Link>
-            <span className="badge">API: /api/waybills/print</span>
+       <div 
+         className="hero-card border-l-4 border-[#ffd700] bg-white p-8 rounded-r-2xl shadow-sm mb-8"
+         style={{ fontFamily: "'Pyidaungsu', 'Noto Sans Myanmar', sans-serif" }}
+       >
+          <h1 className="text-3xl font-black text-[#0d2c54] mb-2">
+            Waybill Print Studio <span className="text-slate-400 font-normal">/</span> <span className="font-bold">အညွှန်းပုံနှိပ်စက်ခန်း</span>
+          </h1>
+          <p className="text-slate-600 mb-8">Generate thermal and A4 waybills for the logistics network. / ကုန်စည်ပို့ဆောင်ရေးအတွက် အညွှန်းစာရွက်များ ထုတ်ယူပါ။</p>
+          
+          <div className="flex gap-4">
+             <Link 
+               href="/print/waybill?format=4x6_single" 
+               className="bg-[#0d2c54] hover:bg-blue-900 text-white px-6 py-3 rounded-xl font-bold transition shadow-md"
+             >
+                Preview 4x6 Single (၄x၆ အရွယ်အစား)
+             </Link>
+             <Link 
+               href="/print/waybill?format=a4_batch" 
+               className="bg-[#ffd700] hover:bg-yellow-500 text-[#0d2c54] px-6 py-3 rounded-xl font-bold transition shadow-md"
+             >
+                Print Batch A4 (A4 အရွယ်အစား)
+             </Link>
           </div>
-        </article>
-        <aside className="card">
-          <SectionTitle
-            eyebrow="Jobs"
-            title="Queued design profiles"
-            copy="All templates are batch-safe and can be called from booking, manifest closure, or customer-service reprint flows."
-          />
-          <div className="stack">
-            {printFormats.map((format) => (
-              <div key={format.code} className="inner-card card">
-                <div className="split-row">
-                  <div>
-                    <div style={{ fontWeight: 800 }}>{format.title}</div>
-                    <div className="muted" style={{ marginTop: 6 }}>{format.subtitle}</div>
-                  </div>
-                  <StatusPill tone="success">Ready</StatusPill>
-                </div>
-              </div>
-            ))}
-          </div>
-        </aside>
-      </section>
-
-      <section className="page-grid">
-        <div className="page-main">
-          <article className="panel">
-            <SectionTitle
-              eyebrow="Single + batch"
-              title="Shipment payloads bound to output formats"
-              copy="The print backend receives shipment IDs, the selected format profile, and the requested number of copies. It then routes the user to the matching print surface."
-            />
-            <div className="table-wrap">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Tracking</th>
-                    <th>Recipient</th>
-                    <th>COD</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {batchWaybills.map((shipment) => (
-                    <tr key={shipment.shipmentId}>
-                      <td>{shipment.trackingNumber}</td>
-                      <td>{shipment.recipientName}</td>
-                      <td>{shipment.codAmountMmks.toLocaleString()} MMK</td>
-                      <td>
-                        <div className="action-row" style={{ marginTop: 0 }}>
-                          <Link className="btn btn-secondary" href={`/print/waybill?format=4x6_single&shipmentIds=${shipment.shipmentId}`}>4 x 6</Link>
-                          <Link className="btn btn-secondary" href={`/print/waybill?format=a5_single&shipmentIds=${shipment.shipmentId}`}>A5</Link>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </article>
-        </div>
-
-        <aside className="card">
-          <SectionTitle
-            eyebrow="Reference"
-            title="Master sample"
-            copy="The layout aligns to your uploaded sample: brand header, timestamp, QR, merchant, recipient, pricing matrix, COD box, remarks, and footer."
-          />
-          <img src="/references/waybill-reference.png" alt="Waybill reference" style={{ width: "100%", borderRadius: 24, border: "1px solid var(--line)" }} />
-        </aside>
-      </section>
+       </div>
     </Shell>
   );
 }

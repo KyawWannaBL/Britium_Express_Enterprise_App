@@ -1,30 +1,41 @@
-'use client';
+"use client";
 
-import { useTranslation } from 'react-i18next';
+import { Languages } from "lucide-react";
+import { useLanguage } from "@/components/providers/LanguageProvider";
 
 export default function LanguageToggle() {
-  const { i18n } = useTranslation();
-
-  const changeLanguage = (lng: string) => {
-    i18n.changeLanguage(lng);
-    // Production Hardening: ရွေးချယ်မှုကို သိမ်းဆည်းထားရန်
-    localStorage.setItem('i18nextLng', lng);
-  };
+  const { language, setLanguage } = useLanguage();
 
   return (
-    <div className="flex gap-2 p-2">
-      <button 
-        onClick={() => changeLanguage('mm')}
-        className={`px-3 py-1 rounded ${i18n.language === 'mm' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
-      >
-        မြန်မာ
-      </button>
-      <button 
-        onClick={() => changeLanguage('en')}
-        className={`px-3 py-1 rounded ${i18n.language === 'en' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
-      >
-        EN
-      </button>
+    <div className="fixed right-4 top-4 z-[9999]">
+      <div className="flex items-center gap-1 rounded-2xl border border-slate-200 bg-white px-2 py-2 shadow-2xl">
+        <Languages size={16} className="text-slate-500" />
+
+        <button
+          type="button"
+          onClick={() => setLanguage("en")}
+          className={`rounded-xl px-3 py-2 text-xs font-black uppercase tracking-wider transition ${
+            language === "en"
+              ? "bg-[#0d2c54] text-white"
+              : "text-slate-600 hover:bg-slate-100"
+          }`}
+        >
+          EN
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setLanguage("mm")}
+          className={`rounded-xl px-3 py-2 text-xs font-black transition ${
+            language === "mm"
+              ? "bg-[#ffd700] text-[#0d2c54]"
+              : "text-slate-600 hover:bg-slate-100"
+          }`}
+          style={{ fontFamily: "'Pyidaungsu', sans-serif" }}
+        >
+          မြန်မာ
+        </button>
+      </div>
     </div>
   );
 }

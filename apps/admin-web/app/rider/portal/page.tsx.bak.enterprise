@@ -1,0 +1,65 @@
+"use client";
+import { useState, useEffect } from "react";
+import { createClient } from "@/lib/supabase/client";
+import { ScanBarcode, Navigation, CheckCircle, XCircle, Package } from "lucide-react";
+
+export default function RiderPortal() {
+  const supabase = createClient();
+  const [tasks, setTasks] = useState<any[]>([]);
+
+  useEffect(() => {
+    async function getMyTasks() {
+      // In production, we filter by the logged-in Rider's ID
+      const { data } = await supabase.from('shipments').select('*').eq('status', 'in_transit');
+      if (data) setTasks(data);
+    }
+    getMyTasks();
+  }, []);
+
+  return (
+    <div className="max-w-md mx-auto p-4 space-y-6 pb-24" style={{ fontFamily: "'Pyidaungsu', sans-serif" }}>
+      <div className="flex justify-between items-end mb-8">
+        <div>
+          <h1 className="text-2xl font-black text-[#0d2c54] uppercase tracking-tight">Rider Portal</h1>
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Active Deliveries</p>
+        </div>
+        <div className="bg-emerald-500 text-white p-3 rounded-2xl shadow-lg animate-pulse">
+           <ScanBarcode size={24} />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        <div className="bg-white p-4 rounded-3xl border shadow-sm">
+          <p className="text-[10px] font-black text-slate-400 uppercase">To Deliver</p>
+          <p className="text-2xl font-black text-[#0d2c54]">{tasks.length}</p>
+        </div>
+        <div className="bg-[#0d2c54] p-4 rounded-3xl shadow-sm text-white">
+          <p className="text-[10px] font-black opacity-60 uppercase tracking-tighter">Earnings (Today)</p>
+          <p className="text-xl font-black text-[#ffd700]">12,500 <span className="text-[10px]">MMK</span></p>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        {tasks.map((task) => (
+          <div key={task.id} className="bg-white p-6 rounded-[30px] border border-slate-100 shadow-md relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-4 opacity-10"><Package size={48}/></div>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-[10px] font-black bg-blue-100 text-blue-700 px-2 py-0.5 rounded uppercase">{task.tracking_number}</span>
+            </div>
+            <h3 className="font-black text-lg text-[#0d2c54]">{task.recipient_name}</h3>
+            <p className="text-xs text-slate-500 font-bold mb-4 line-clamp-1">{task.recipient_address}</p>
+            
+            <div className="flex gap-2">
+              <button className="flex-1 bg-emerald-500 text-white py-3 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2">
+                <CheckCircle size={14}/> Success
+              </button>
+              <button className="flex-1 bg-rose-100 text-rose-600 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2">
+                <XCircle size={14}/> Fail
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
