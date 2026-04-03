@@ -4,11 +4,9 @@ import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { useLanguage } from "@/contexts/LanguageContext";
 import {
   BarChart3,
   BellRing,
-  Blocks,
   Building2,
   ClipboardList,
   FileSearch,
@@ -472,8 +470,8 @@ function buildEffectivePermissionSet(
     if (grant.effect === "DENY") {
       denySet.add(grant.permission_code);
       allowSet.delete(grant.permission_code);
-    } else {
-      if (!denySet.has(grant.permission_code)) allowSet.add(grant.permission_code);
+    } else if (!denySet.has(grant.permission_code)) {
+      allowSet.add(grant.permission_code);
     }
   }
 
@@ -490,7 +488,7 @@ function canSeeRoute(route: PortalRoute, role: string, permissions: Set<PortalPe
 function groupRoutesForSidebar(routes: PortalRoute[]) {
   return Object.entries(
     routes.reduce<Record<PortalSection, PortalRoute[]>>((acc, route) => {
-      if (!acc[route.section]) acc[route.section] = [] as PortalRoute[];
+      if (!acc[route.section]) acc[route.section] = [];
       acc[route.section].push(route);
       return acc;
     }, {} as Record<PortalSection, PortalRoute[]>),
@@ -533,18 +531,18 @@ function useSidebarAccessContext(): SidebarAccessContext {
 
         const [{ data: profile, error: profileError }, { data: roleDefaults }, { data: userGrants }] = await Promise.all([
           supabase
-            .from("profiles")
-            .select("id,email,role,status,display_name")
-            .eq("id", authUser.id)
+            .from(\"profiles\")
+            .select(\"id,email,role,status,display_name\")
+            .eq(\"id\", authUser.id)
             .single<ProfileRow>(),
           supabase
-            .from("role_default_permissions")
-            .select("role,permission_code")
+            .from(\"role_default_permissions\")
+            .select(\"role,permission_code\")
             .returns<RoleDefaultPermissionRow[]>(),
           supabase
-            .from("user_permission_grants")
-            .select("permission_code,effect,expires_at")
-            .eq("user_id", authUser.id)
+            .from(\"user_permission_grants\")
+            .select(\"permission_code,effect,expires_at\")
+            .eq(\"user_id\", authUser.id)
             .returns<UserPermissionGrantRow[]>(),
         ]);
 
@@ -571,7 +569,7 @@ function useSidebarAccessContext(): SidebarAccessContext {
             profile: null,
             effectivePermissions: new Set<PortalPermission>(),
             deniedPermissions: new Set<PortalPermission>(),
-            error: error instanceof Error ? error.message : "Unable to resolve sidebar access.",
+            error: error instanceof Error ? error.message : \"Unable to resolve sidebar access.\",
           });
         }
       }
@@ -594,25 +592,17 @@ function useSidebarAccessContext(): SidebarAccessContext {
   return state;
 }
 
-export default function AppSidebarRbacSupabase() {
+export default function Sidebar() {
   const router = useRouter();
   const pathname = usePathname();
   const supabase = createClient();
-  const languageContext = (() => {
-    try {
-      return useLanguage()?.lang as "en" | "mm" | undefined;
-    } catch {
-      return undefined;
-    }
-  })();
-
-  const language: Language = languageContext === "en" ? "en" : languageContext === "mm" ? "my" : "both";
+  const language: Language = \"both\";
   const access = useSidebarAccessContext();
   const role = normalizeRole(access.profile?.role);
-  const status = String(access.profile?.status || "GUEST").toUpperCase();
+  const status = String(access.profile?.status || \"GUEST\").toUpperCase();
 
   const visibleRoutes = useMemo(() => {
-    if (!access.authenticated || status !== "ACTIVE") return [] as PortalRoute[];
+    if (!access.authenticated || status !== \"ACTIVE\") return [] as PortalRoute[];
     return portalRegistry.filter((route) => route.showInSidebar && canSeeRoute(route, role, access.effectivePermissions));
   }, [access.authenticated, access.effectivePermissions, role, status]);
 
@@ -620,30 +610,30 @@ export default function AppSidebarRbacSupabase() {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
-    router.replace("/auth/sign-in");
+    router.replace(\"/auth/sign-in\");
   };
 
   return (
-    <aside className="flex h-screen w-80 flex-col border-r border-white/5 bg-[#0d2c54] text-white shadow-2xl">
-      <div className="border-b border-white/5 p-8">
-        <div className="flex items-center gap-3">
-          <ShieldCheck className="text-[#ffd700]" size={24} />
-          <h1 className="text-xl font-black uppercase tracking-tighter italic">
-            Britium <span className="font-light text-[#ffd700]">Express</span>
+    <aside className=\"flex h-screen w-80 flex-col border-r border-white/5 bg-[#0d2c54] text-white shadow-2xl\">
+      <div className=\"border-b border-white/5 p-8\">
+        <div className=\"flex items-center gap-3\">
+          <ShieldCheck className=\"text-[#ffd700]\" size={24} />
+          <h1 className=\"text-xl font-black uppercase tracking-tighter italic\">
+            Britium <span className=\"font-light text-[#ffd700]\">Express</span>
           </h1>
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          <span className="inline-flex rounded-full bg-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-[#ffd700]">
+        <div className=\"mt-4 flex flex-wrap items-center gap-2\">
+          <span className=\"inline-flex rounded-full bg-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-[#ffd700]\">
             {bi(language, `Role: ${role}`, `အဆင့်: ${role}`)}
           </span>
           <span
             className={`inline-flex rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest ${
-              status === "ACTIVE"
-                ? "bg-emerald-500/15 text-emerald-300"
-                : status === "PENDING"
-                  ? "bg-amber-500/15 text-amber-300"
-                  : "bg-rose-500/15 text-rose-300"
+              status === \"ACTIVE\"
+                ? \"bg-emerald-500/15 text-emerald-300\"
+                : status === \"PENDING\"
+                  ? \"bg-amber-500/15 text-amber-300\"
+                  : \"bg-rose-500/15 text-rose-300\"
             }`}
           >
             {status}
@@ -651,49 +641,49 @@ export default function AppSidebarRbacSupabase() {
         </div>
 
         {access.profile?.display_name ? (
-          <p className="mt-3 text-xs text-slate-300">{access.profile.display_name}</p>
+          <p className=\"mt-3 text-xs text-slate-300\">{access.profile.display_name}</p>
         ) : null}
 
         {!access.ready ? (
-          <div className="mt-4 inline-flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-xs text-slate-200">
-            <Loader2 size={14} className="animate-spin" />
-            {bi(language, "Loading access...", "ခွင့်ပြုချက်ရယူနေသည်...")}
+          <div className=\"mt-4 inline-flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-xs text-slate-200\">
+            <Loader2 size={14} className=\"animate-spin\" />
+            {bi(language, \"Loading access...\", \"ခွင့်ပြုချက်ရယူနေသည်...\")}
           </div>
         ) : null}
 
         {access.error ? (
-          <div className="mt-4 rounded-2xl border border-rose-400/20 bg-rose-500/10 px-4 py-3 text-xs text-rose-200">
+          <div className=\"mt-4 rounded-2xl border border-rose-400/20 bg-rose-500/10 px-4 py-3 text-xs text-rose-200\">
             {access.error}
           </div>
         ) : null}
       </div>
 
-      <nav className="custom-scrollbar flex-1 space-y-8 overflow-y-auto px-4 py-6">
+      <nav className=\"custom-scrollbar flex-1 space-y-8 overflow-y-auto px-4 py-6\">
         {!access.ready ? null : !access.authenticated ? (
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
-            {bi(language, "Please sign in to view portals.", "Portal များကြည့်ရန် sign in ဝင်ပါ။")}
+          <div className=\"rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300\">
+            {bi(language, \"Please sign in to view portals.\", \"Portal များကြည့်ရန် sign in ဝင်ပါ။\")}
           </div>
-        ) : status !== "ACTIVE" ? (
-          <div className="rounded-2xl border border-amber-400/20 bg-amber-500/10 p-4 text-sm text-amber-100">
+        ) : status !== \"ACTIVE\" ? (
+          <div className=\"rounded-2xl border border-amber-400/20 bg-amber-500/10 p-4 text-sm text-amber-100\">
             {bi(
               language,
-              "Your account is not ACTIVE yet. Sidebar items are hidden until access is approved.",
-              "သင့် account သည် ACTIVE မဖြစ်သေးပါ။ ခွင့်ပြုချက်ရပြီးမှသာ sidebar items များကို ပြသပါမည်။",
+              \"Your account is not ACTIVE yet. Sidebar items are hidden until access is approved.\",
+              \"သင့် account သည် ACTIVE မဖြစ်သေးပါ။ ခွင့်ပြုချက်ရပြီးမှသာ sidebar items များကို ပြသပါမည်။\",
             )}
           </div>
         ) : grouped.length === 0 ? (
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
-            {bi(language, "No portal access assigned yet.", "Portal access မပေးရသေးပါ။")}
+          <div className=\"rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300\">
+            {bi(language, \"No portal access assigned yet.\", \"Portal access မပေးရသေးပါ။\")}
           </div>
         ) : (
           grouped.map(([section, routes]) => (
             <div key={section}>
-              <div className="mb-4 px-4">
-                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">{sectionMeta[section].en}</p>
-                <p className="mt-1 text-[10px] font-bold text-slate-400">{sectionMeta[section].my}</p>
+              <div className=\"mb-4 px-4\">
+                <p className=\"text-[10px] font-black uppercase tracking-[0.3em] text-slate-500\">{sectionMeta[section].en}</p>
+                <p className=\"mt-1 text-[10px] font-bold text-slate-400\">{sectionMeta[section].my}</p>
               </div>
 
-              <div className="space-y-1">
+              <div className=\"space-y-1\">
                 {routes.map((item) => {
                   const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
                   const Icon = item.icon;
@@ -703,13 +693,13 @@ export default function AppSidebarRbacSupabase() {
                       href={item.href}
                       prefetch
                       className={`flex items-start gap-4 rounded-xl px-4 py-3 transition-all ${
-                        isActive ? "bg-[#ffd700] text-[#0d2c54]" : "text-slate-300 hover:bg-white/5"
+                        isActive ? \"bg-[#ffd700] text-[#0d2c54]\" : \"text-slate-300 hover:bg-white/5\"
                       }`}
                     >
-                      <Icon size={18} className="mt-0.5 shrink-0" />
-                      <div className="min-w-0">
-                        <div className="text-xs font-black uppercase tracking-wider">{bi(language, item.label, item.mm)}</div>
-                        <div className={`mt-1 text-[10px] ${isActive ? "text-[#0d2c54]/80" : "text-slate-400"}`}>
+                      <Icon size={18} className=\"mt-0.5 shrink-0\" />
+                      <div className=\"min-w-0\">
+                        <div className=\"text-xs font-black uppercase tracking-wider\">{bi(language, item.label, item.mm)}</div>
+                        <div className={`mt-1 text-[10px] ${isActive ? \"text-[#0d2c54]/80\" : \"text-slate-400\"}`}>
                           {bi(language, item.description, item.mmDescription)}
                         </div>
                       </div>
@@ -722,16 +712,15 @@ export default function AppSidebarRbacSupabase() {
         )}
       </nav>
 
-      <div className="border-t border-white/5 p-6">
+      <div className=\"border-t border-white/5 p-6\">
         <button
           onClick={handleSignOut}
-          className="flex w-full items-center gap-3 rounded-2xl border border-rose-500/20 bg-rose-500/10 px-6 py-4 text-[10px] font-black uppercase tracking-widest text-rose-300 transition-all hover:bg-rose-500 hover:text-white"
+          className=\"flex w-full items-center gap-3 rounded-2xl border border-rose-500/20 bg-rose-500/10 px-6 py-4 text-[10px] font-black uppercase tracking-widest text-rose-300 transition-all hover:bg-rose-500 hover:text-white\"
         >
           <LogOut size={16} />
-          <span>{bi(language, "Terminate Session", "ထွက်မည်")}</span>
+          <span>{bi(language, \"Terminate Session\", \"ထွက်မည်\")}</span>
         </button>
       </div>
     </aside>
   );
 }
-
