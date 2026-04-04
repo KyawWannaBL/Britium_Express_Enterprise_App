@@ -1,10 +1,3 @@
-It looks like the file didn't actually get saved in your code editor before you made that last commit, because the exact same `AuthContext` error is still popping up for `page.tsx`! 
-
-Let's knock this out. 
-
-Please open **`apps/admin-web/app/settings/portal/page.tsx`**, completely delete everything inside it, and paste this exact code. **Make sure to hit Save (Ctrl+S) in your code editor before going back to the terminal.**
-
-```tsx
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";

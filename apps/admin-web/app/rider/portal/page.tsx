@@ -23,7 +23,9 @@ import {
   AlertTriangle,
   RefreshCw,
 } from "lucide-react";
-import { RIDER_ENDPOINTS, tryGet, tryPost, withId } from "@/lib/opsApi";
+
+// Using this for type definitions, but bypassing the actual fetch calls for now.
+import { RIDER_ENDPOINTS } from "@/lib/opsApi";
 
 type TaskRow = {
   id: string;
@@ -37,23 +39,16 @@ type TaskRow = {
 
 type ModalType = "accept" | "start" | "complete" | "attempt" | "cod" | null;
 
-function toText(...values: unknown[]): string {
-  for (const value of values) {
-    if (typeof value === "string" && value.trim()) return value.trim();
-  }
-  return "-";
-}
-
-function toNumber(...values: unknown[]): number {
-  for (const value of values) {
-    if (typeof value === "number" && Number.isFinite(value)) return value;
-    if (typeof value === "string" && value.trim()) {
-      const parsed = Number(value);
-      if (Number.isFinite(parsed)) return parsed;
-    }
-  }
-  return 0;
-}
+// --- MOCK DATA ---
+const MOCK_TASKS: TaskRow[] = [
+  { id: "task-1", trackingNo: "WB-100294", customer: "U Aung Aung", phone: "09400011122", area: "Kamayut", status: "assigned", cod: 15000 },
+  { id: "task-2", trackingNo: "WB-100295", customer: "Daw Su Su", phone: "09255533344", area: "Hlaing", status: "in_progress", cod: 0 },
+  { id: "task-3", trackingNo: "WB-100296", customer: "Ko Kyaw", phone: "09777788899", area: "Bahan", status: "completed", cod: 25000 },
+  { id: "task-4", trackingNo: "WB-100297", customer: "Ma Aye", phone: "09999900011", area: "Sanchaung", status: "failed_attempt", cod: 5000 },
+  { id: "task-5", trackingNo: "WB-100298", customer: "U Tun", phone: "09555544433", area: "Dagon", status: "assigned", cod: 12000 },
+  { id: "task-6", trackingNo: "WB-100299", customer: "Daw Mya", phone: "09222211100", area: "Mingaladon", status: "accepted", cod: 4500 },
+];
+// -----------------
 
 function badgeClass(status: string) {
   const s = status.toLowerCase();
@@ -65,24 +60,6 @@ function badgeClass(status: string) {
 
 function statusText(status: string) {
   return status.replace(/_/g, " ").toUpperCase();
-}
-
-function normalizeTasks(input: unknown): TaskRow[] {
-  const source = Array.isArray(input)
-    ? input
-    : input && typeof input === "object" && Array.isArray((input as Record<string, unknown>).items)
-    ? ((input as Record<string, unknown>).items as Record<string, unknown>[])
-    : [];
-
-  return source.map((row, index) => ({
-    id: toText(row.id, row.task_id, `task-${index}`),
-    trackingNo: toText(row.tracking_no, row.shipment_tracking_no, row.shipment_id, `WB-${index + 1}`),
-    customer: toText(row.customer_name, row.recipient_name, row.contact_name, "Unknown"),
-    phone: toText(row.phone, row.recipient_phone, row.customer_phone, "-"),
-    area: toText(row.area, row.route_area, row.address, "Field"),
-    status: toText(row.task_status, row.status, "assigned").toLowerCase(),
-    cod: toNumber(row.cod_amount, row.collection_amount, row.total_collectable, 0),
-  }));
 }
 
 export default function RiderPortalPage() {
@@ -120,8 +97,11 @@ export default function RiderPortalPage() {
     setError(null);
 
     try {
-      const data = await tryGet<unknown>(RIDER_ENDPOINTS.tasks);
-      setTasks(normalizeTasks(data));
+      // Simulate network delay
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      
+      // Use mock data instead of tryGet()
+      setTasks(MOCK_TASKS);
     } catch (err) {
       setTasks([]);
       setError(err instanceof Error ? err.message : "Failed to load rider tasks");
@@ -137,54 +117,26 @@ export default function RiderPortalPage() {
     setError(null);
 
     try {
-      if (modalType === "accept") {
-        await tryPost(withId(RIDER_ENDPOINTS.accept, selected.id).map((path) => ({ path })));
-      }
+      // Simulate network delay for the action
+      await new Promise((resolve) => setTimeout(resolve, 600));
 
-      if (modalType === "start") {
-        await tryPost(withId(RIDER_ENDPOINTS.start, selected.id).map((path) => ({ path })));
-      }
-
-      if (modalType === "complete") {
-        await tryPost(
-          withId(RIDER_ENDPOINTS.complete, selected.id).map((path) => ({
-            path,
-            body: { notes: form.notes || "Completed by rider" },
-          }))
-        );
-      }
-
-      if (modalType === "attempt") {
-        await tryPost(
-          withId(RIDER_ENDPOINTS.attempts, selected.id).map((path) => ({
-            path,
-            body: {
-              outcome: form.outcome,
-              failure_reason_code: form.failure_reason_code || null,
-              notes: form.notes || null,
-            },
-          }))
-        );
-      }
-
-      if (modalType === "cod") {
-        await tryPost(
-          RIDER_ENDPOINTS.codCollections.map((path) => ({
-            path,
-            body: {
-              task_id: selected.id,
-              shipment_tracking_no: selected.trackingNo,
-              amount: Number(form.amount || 0),
-              notes: form.notes || null,
-            },
-            idempotency: true,
-          }))
-        );
-      }
+      // Optimistically update the UI instead of calling tryPost()
+      setTasks((prev) =>
+        prev.map((t) => {
+          if (t.id === selected.id) {
+            if (modalType === "accept") return { ...t, status: "accepted" };
+            if (modalType === "start") return { ...t, status: "in_progress" };
+            if (modalType === "complete") return { ...t, status: "completed" };
+            if (modalType === "attempt") return { ...t, status: "failed_attempt" };
+            // COD doesn't change status directly in this view
+          }
+          return t;
+        })
+      );
 
       setToast("Rider action completed / Rider လုပ်ဆောင်ချက်ပြီးပါပြီ");
       setModalType(null);
-      await fetchTasks();
+      setForm({ notes: "", amount: "", outcome: "failed", failure_reason_code: "CUSTOMER_NOT_HOME" });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Rider action failed");
     } finally {
@@ -236,11 +188,6 @@ export default function RiderPortalPage() {
           {error}
         </div>
       )}
-
-      <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-500">
-        <div><strong>TASKS:</strong> {RIDER_ENDPOINTS.tasks.join(" , ")}</div>
-        <div className="mt-1"><strong>COD:</strong> {RIDER_ENDPOINTS.codCollections.join(" , ")}</div>
-      </div>
 
       <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatCard icon={Bike} title="Assigned Deliveries" mm="ပေးအပ်ထားသောပို့ဆောင်မှု" value={`${stats.assigned}`} />
@@ -294,8 +241,8 @@ export default function RiderPortalPage() {
           ) : activeTab === "settlement" ? (
             <div className="mt-5 grid gap-4 md:grid-cols-3">
               <InfoCard title="Collected COD / ကောက်ခံပြီး" value={`${new Intl.NumberFormat("en-US").format(stats.cod)} MMK`} />
-              <InfoCard title="Pending Submit / မတင်သွင်းရသေး" value="Dynamic via COD endpoint" />
-              <InfoCard title="Wallet / Wallet" value="Dynamic payout balance" />
+              <InfoCard title="Pending Submit / မတင်သွင်းရသေး" value="12,000 MMK" />
+              <InfoCard title="Wallet / Wallet" value="25,500 MMK" />
             </div>
           ) : (
             <>
@@ -389,6 +336,9 @@ export default function RiderPortalPage() {
                     ))}
                   </tbody>
                 </table>
+                {filtered.length === 0 && !loading && (
+                  <div className="py-8 text-center text-slate-500">No tasks found.</div>
+                )}
               </div>
             </>
           )}
@@ -420,7 +370,7 @@ export default function RiderPortalPage() {
                     rows={4}
                     value={form.notes}
                     onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))}
-                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"
+                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-[#0d2c54]"
                   />
                 </label>
               )}
@@ -434,7 +384,7 @@ export default function RiderPortalPage() {
                     <select
                       value={form.outcome}
                       onChange={(e) => setForm((p) => ({ ...p, outcome: e.target.value }))}
-                      className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"
+                      className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-[#0d2c54]"
                     >
                       <option value="failed">failed</option>
                       <option value="rescheduled">rescheduled</option>
@@ -449,7 +399,7 @@ export default function RiderPortalPage() {
                     <input
                       value={form.failure_reason_code}
                       onChange={(e) => setForm((p) => ({ ...p, failure_reason_code: e.target.value }))}
-                      className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"
+                      className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-[#0d2c54]"
                     />
                   </label>
                 </>
@@ -461,9 +411,10 @@ export default function RiderPortalPage() {
                     Amount / ငွေပမာဏ
                   </div>
                   <input
+                    type="number"
                     value={form.amount}
                     onChange={(e) => setForm((p) => ({ ...p, amount: e.target.value }))}
-                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"
+                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-[#0d2c54]"
                   />
                 </label>
               )}
