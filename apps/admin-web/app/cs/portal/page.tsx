@@ -126,6 +126,7 @@ type MessageForm = {
 };
 
 const ACCESS_ROLES = [
+  "SYS",
   "SUPER_ADMIN",
   "ADMIN",
   "SUPERVISOR",
@@ -378,12 +379,12 @@ function hasPortalAccess(user: AuthUser) {
 function canExportData(user: AuthUser) {
   const role = (user.role ?? "").toUpperCase();
   const perms = (user.permissions ?? []).map((item) => item.toUpperCase());
-  return ["SUPER_ADMIN", "ADMIN", "SUPERVISOR", "WAREHOUSE_CONTROLLER"].includes(role) || perms.includes("CUSTOMER_SERVICE_EXPORT");
+  return ["SYS", "SUPER_ADMIN", "ADMIN", "SUPERVISOR", "WAREHOUSE_CONTROLLER"].includes(role) || perms.includes("CUSTOMER_SERVICE_EXPORT");
 }
 
 function canWriteManagementNote(user: AuthUser) {
   const role = (user.role ?? "").toUpperCase();
-  return ["SUPER_ADMIN", "ADMIN", "SUPERVISOR", "WAREHOUSE_CONTROLLER", "CUSTOMER_SERVICE", "CUSTOMER_SERVICE_AGENT", "CS"].includes(role);
+  return ["SYS", "SUPER_ADMIN", "ADMIN", "SUPERVISOR", "WAREHOUSE_CONTROLLER", "CUSTOMER_SERVICE", "CUSTOMER_SERVICE_AGENT", "CS"].includes(role);
 }
 
 async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {

@@ -2681,4 +2681,3 @@ export default function SettingsAuthorizationPortal() {
     </div>
   );
 }
-```

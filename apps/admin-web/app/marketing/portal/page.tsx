@@ -157,6 +157,7 @@ type ReportForm = {
 };
 
 const ACCESS_ROLES = [
+  "SYS",
   "SUPER_ADMIN",
   "ADMIN",
   "SUPERVISOR",
@@ -389,12 +390,12 @@ function hasAccess(user: AuthUser) {
 
 function canSetTargets(user: AuthUser) {
   const role = (user.role ?? "").toUpperCase();
-  return role === "SUPER_ADMIN" || role === "ADMIN";
+  return role === "SYS" || role === "SUPER_ADMIN" || role === "ADMIN";
 }
 
 function canExport(user: AuthUser) {
   const role = (user.role ?? "").toUpperCase();
-  return ["SUPER_ADMIN", "ADMIN", "SUPERVISOR", "MARKETING_MANAGER"].includes(role);
+  return ["SYS", "SUPER_ADMIN", "ADMIN", "SUPERVISOR", "MARKETING_MANAGER"].includes(role);
 }
 
 async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
