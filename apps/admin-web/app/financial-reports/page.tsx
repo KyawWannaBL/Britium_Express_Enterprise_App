@@ -17,7 +17,6 @@ import {
   getItems,
   toNumber,
   toText,
-  tryGet,
 } from "@/lib/productionApi";
 
 type Language = "en" | "my" | "both";
@@ -84,14 +83,40 @@ type ProfitLossRow = CommonRow & {
   category: "income" | "expense" | "summary";
 };
 
-const REPORT_ENDPOINTS = {
-  cashBookSummary: "/api/v1/reports/cash-book-summary",
-  journalSummary: "/api/v1/reports/journal-summary",
-  trialBalance: "/api/v1/reports/trial-balance",
-  incomeStatement: "/api/v1/reports/income-statement",
-  balanceSheet: "/api/v1/reports/balance-sheet",
-  profitAndLoss: "/api/v1/reports/profit-loss",
-};
+// --- MOCK DATA ---
+const MOCK_CASH_BOOK = [
+  { id: "cb1", branch: "Yangon Main", zone: "Yangon", report_date: "2026-01-15", account_description: "Cash in Hand", received: 1500000, payment: 200000, opening_balance: 500000, closing_balance: 1800000 },
+  { id: "cb2", branch: "Mandalay Branch", zone: "Mandalay", report_date: "2026-01-15", account_description: "KBZ Bank", received: 3000000, payment: 1500000, opening_balance: 1000000, closing_balance: 2500000 }
+];
+
+const MOCK_JOURNAL = [
+  { id: "js1", branch: "Yangon Main", zone: "Yangon", report_date: "2026-01-15", account_description: "Delivery Revenue", debit: 0, credit: 1500000 },
+  { id: "js2", branch: "Yangon Main", zone: "Yangon", report_date: "2026-01-15", account_description: "Fuel Expense", debit: 200000, credit: 0 }
+];
+
+const MOCK_TRIAL = [
+  { id: "tb1", branch: "Yangon Main", zone: "Yangon", report_date: "2026-01-15", code_no: "1001", account_head: "Assets", account_description: "Cash", opening_debit: 500000, opening_credit: 0, during_debit: 1500000, during_credit: 200000, closing_debit: 1800000, closing_credit: 0 }
+];
+
+const MOCK_INCOME = [
+  { id: "is1", branch: "Yangon Main", zone: "Yangon", report_date: "2026-01-15", code_no: "4001", description: "Delivery Income", category: "income", amount: 4500000 },
+  { id: "is2", branch: "Yangon Main", zone: "Yangon", report_date: "2026-01-15", code_no: "5001", description: "Fuel Expense", category: "expense", amount: 800000 },
+  { id: "is3", branch: "Yangon Main", zone: "Yangon", report_date: "2026-01-15", code_no: "5002", description: "Salary Expense", category: "expense", amount: 1200000 },
+  { id: "is4", branch: "Yangon Main", zone: "Yangon", report_date: "2026-01-15", code_no: "9000", description: "Net Profit", category: "summary", amount: 2500000 },
+];
+
+const MOCK_BALANCE = [
+  { id: "bs1", branch: "Yangon Main", zone: "Yangon", report_date: "2026-01-15", code_no: "1001", description: "Cash and Bank", section: "asset", amount: 4300000 },
+  { id: "bs2", branch: "Yangon Main", zone: "Yangon", report_date: "2026-01-15", code_no: "2001", description: "Accounts Payable", section: "liability", amount: 500000 },
+  { id: "bs3", branch: "Yangon Main", zone: "Yangon", report_date: "2026-01-15", code_no: "3001", description: "Retained Earnings", section: "equity", amount: 3800000 },
+];
+
+const MOCK_PROFIT = [
+  { id: "pl1", branch: "Yangon Main", zone: "Yangon", report_date: "2026-01-15", code_no: "4000", description: "Operating Revenue", category: "income", amount: 4500000, cumulative_year_to_date: 4500000 },
+  { id: "pl2", branch: "Yangon Main", zone: "Yangon", report_date: "2026-01-15", code_no: "5000", description: "Operating Expenses", category: "expense", amount: 2000000, cumulative_year_to_date: 2000000 },
+  { id: "pl3", branch: "Yangon Main", zone: "Yangon", report_date: "2026-01-15", code_no: "9000", description: "Net Profit", category: "summary", amount: 2500000, cumulative_year_to_date: 2500000 },
+];
+// -----------------
 
 const defaultDateRange = {
   startDate: "2026-01-01",
@@ -539,37 +564,18 @@ export default function FinancialReportsPage() {
     setLoading(true);
     setError(null);
 
-    const results = await Promise.allSettled([
-      tryGet<unknown>(REPORT_ENDPOINTS.cashBookSummary),
-      tryGet<unknown>(REPORT_ENDPOINTS.journalSummary),
-      tryGet<unknown>(REPORT_ENDPOINTS.trialBalance),
-      tryGet<unknown>(REPORT_ENDPOINTS.incomeStatement),
-      tryGet<unknown>(REPORT_ENDPOINTS.balanceSheet),
-      tryGet<unknown>(REPORT_ENDPOINTS.profitAndLoss),
-    ]);
+    try {
+      // Simulate network request
+      await new Promise(resolve => setTimeout(resolve, 800));
 
-    const [cashBookRes, journalRes, trialRes, incomeRes, balanceRes, profitRes] = results;
+      setCashBookRows(normalizeCashBook(MOCK_CASH_BOOK));
+      setJournalSummaryRows(normalizeJournalSummary(MOCK_JOURNAL));
+      setTrialBalanceRows(normalizeTrialBalance(MOCK_TRIAL));
+      setIncomeStatementRows(normalizeIncomeStatement(MOCK_INCOME));
+      setBalanceSheetRows(normalizeBalanceSheet(MOCK_BALANCE));
+      setProfitLossRows(normalizeProfitLoss(MOCK_PROFIT));
 
-    if (cashBookRes.status === "fulfilled") setCashBookRows(normalizeCashBook(cashBookRes.value));
-    else setCashBookRows([]);
-
-    if (journalRes.status === "fulfilled") setJournalSummaryRows(normalizeJournalSummary(journalRes.value));
-    else setJournalSummaryRows([]);
-
-    if (trialRes.status === "fulfilled") setTrialBalanceRows(normalizeTrialBalance(trialRes.value));
-    else setTrialBalanceRows([]);
-
-    if (incomeRes.status === "fulfilled") setIncomeStatementRows(normalizeIncomeStatement(incomeRes.value));
-    else setIncomeStatementRows([]);
-
-    if (balanceRes.status === "fulfilled") setBalanceSheetRows(normalizeBalanceSheet(balanceRes.value));
-    else setBalanceSheetRows([]);
-
-    if (profitRes.status === "fulfilled") setProfitLossRows(normalizeProfitLoss(profitRes.value));
-    else setProfitLossRows([]);
-
-    const allFailed = results.every((item) => item.status === "rejected");
-    if (allFailed) {
+    } catch (err) {
       setError(
         bi(
           language,
@@ -577,9 +583,9 @@ export default function FinancialReportsPage() {
           "Financial reporting API များကို မချိတ်ဆက်နိုင်ပါ။ Reporting endpoint များနှင့် base URL ကို စစ်ဆေးပါ။",
         ),
       );
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   }
 
   const allCommonRows = useMemo(
@@ -825,13 +831,13 @@ export default function FinancialReportsPage() {
               <div className="space-y-5">
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                   <StatCard
-                    icon={WalletMini}
+                    icon={Building2}
                     title={bi(language, "Opening balance", "ဖွင့်လှစ်လက်ကျန်")}
                     value={formatMMK(filteredCashBookRows[0]?.openingBalance || 0)}
                     subtitle={bi(language, "From filtered result", "ရွေးချယ်ထားသောရလဒ်မှ")}
                   />
                   <StatCard
-                    icon={WalletMini}
+                    icon={Building2}
                     title={bi(language, "Closing balance", "ပိတ်သိမ်းလက်ကျန်")}
                     value={formatMMK(filteredCashBookRows[0]?.closingBalance || 0)}
                     subtitle={bi(language, "From filtered result", "ရွေးချယ်ထားသောရလဒ်မှ")}
@@ -1013,8 +1019,4 @@ export default function FinancialReportsPage() {
       </div>
     </div>
   );
-}
-
-function WalletMini({ size = 24, className = "" }: { size?: number; className?: string }) {
-  return <Building2 size={size} className={className} />;
 }

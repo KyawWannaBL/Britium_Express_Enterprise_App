@@ -24,6 +24,7 @@
   "dependencies": {
     "mapbox-gl": "^3.21.0",
     "react-qr-code": "^2.0.18",
+    "recharts": "^3.8.1",
     "xlsx": "^0.18.5"
   }
 }
