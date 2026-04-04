@@ -1,3 +1,10 @@
+It looks like the file didn't actually get saved in your code editor before you made that last commit, because the exact same `AuthContext` error is still popping up for `page.tsx`! 
+
+Let's knock this out. 
+
+Please open **`apps/admin-web/app/settings/portal/page.tsx`**, completely delete everything inside it, and paste this exact code. **Make sure to hit Save (Ctrl+S) in your code editor before going back to the terminal.**
+
+```tsx
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -26,8 +33,7 @@ import {
   UserPlus,
   XCircle,
 } from "lucide-react";
-import { useLanguage } from "@/contexts/LanguageContext";
-import { useAuth } from "@/contexts/AuthContext";
+import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -60,6 +66,7 @@ import {
   safeLower,
   saveStore,
   uuid,
+  bootstrapSignedInUser,
 } from "@/lib/accountControlStore";
 
 type Language = "en" | "my" | "both";
@@ -299,24 +306,10 @@ function downloadBlob(filename: string, contentType: string, data: string) {
 }
 
 export default function SettingsAuthorizationPortal() {
-  const contextLanguage = (() => {
-    try {
-      return useLanguage()?.lang as "en" | "mm" | undefined;
-    } catch {
-      return undefined;
-    }
-  })();
-  const auth = (() => {
-    try {
-      return useAuth() as any;
-    } catch {
-      return undefined;
-    }
-  })();
+  const supabase = useMemo(() => createClient(), []);
+  const [actorEmail, setActorEmail] = useState("");
 
-  const [language, setLanguage] = useState<Language>(
-    contextLanguage === "en" ? "en" : contextLanguage === "mm" ? "my" : "both",
-  );
+  const [language, setLanguage] = useState<Language>("both");
   const [activeTab, setActiveTab] = useState<SettingsTab>("system");
   const [routePointTab, setRoutePointTab] = useState<RoutePointTab>("highway");
   const [saved, setSaved] = useState(false);
@@ -327,6 +320,23 @@ export default function SettingsAuthorizationPortal() {
   );
 
   const t = (en: string, my: string) => bi(language, en, my);
+
+  useEffect(() => {
+    let mounted = true;
+    async function loadActor() {
+      const { data, error } = await supabase.auth.getUser();
+      if (!mounted) return;
+      if (error) {
+        setActorEmail("");
+        return;
+      }
+      setActorEmail(data.user?.email ?? "");
+    }
+    void loadActor();
+    return () => {
+      mounted = false;
+    };
+  }, [supabase]);
 
   const [systemFields, setSystemFields] = useState<SystemField[]>([
     {
@@ -526,8 +536,11 @@ export default function SettingsAuthorizationPortal() {
 
   const [store, setStore] = useState(() => loadStore());
   const [toast, setToast] = useState<Toast | null>(null);
-  const actorEmail = (auth?.user?.email ?? "") as string;
-  const actor = useMemo(() => (actorEmail ? getAccountByEmail(store.accounts, actorEmail) : undefined), [store.accounts, actorEmail]);
+
+  useEffect(() => {
+    if (!actorEmail) return;
+    setStore((prev) => bootstrapSignedInUser(prev, actorEmail));
+  }, [actorEmail]);
 
   useEffect(() => saveStore(store), [store]);
 
@@ -537,6 +550,7 @@ export default function SettingsAuthorizationPortal() {
     return () => window.clearTimeout(id);
   }, [toast]);
 
+  const actor = useMemo(() => (actorEmail ? getAccountByEmail(store.accounts, actorEmail) : undefined), [store.accounts, actorEmail]);
   const actorActive = !!actor && actor.status === "ACTIVE";
   const isPriv = roleIsPrivileged(actor?.role);
   const canRead = actorActive && can(store, actor, "USER_READ");
@@ -2674,3 +2688,4 @@ export default function SettingsAuthorizationPortal() {
     </div>
   );
 }
+```
