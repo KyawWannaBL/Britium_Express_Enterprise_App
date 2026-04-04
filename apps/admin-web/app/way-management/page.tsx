@@ -90,14 +90,128 @@ type ApiWayMetrics = {
   all_ways?: number;
 };
 
-type ApiWayResponse = {
-  data?: ApiWayRecord[];
-  metrics?: ApiWayMetrics;
-  message?: string;
-};
+// --- MOCK DATA ---
+const MOCK_WAYS: ApiWayRecord[] = [
+  {
+    id: "way-1",
+    tracking_number: "BEX-YGN-0001",
+    sender_name: "Britium Fashion",
+    sender_phone: "0991111111",
+    sender_address: "Kamayut, Yangon",
+    recipient_name: "U Aung",
+    recipient_phone: "0970001111",
+    recipient_address: "Bahan, Yangon",
+    product_name: "Clothing",
+    product_weight: 1.5,
+    product_qty: 2,
+    payment_term: "COD",
+    delivery_fee_mmks: 3000,
+    extra_weight_charges: 0,
+    cod_amount_mmks: 25000,
+    total_collectable_amount: 28000,
+    rider_remark: "Deliver before 5 PM",
+    status: "pending_pickup",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: "way-2",
+    tracking_number: "BEX-MDY-0002",
+    sender_name: "Beauty City",
+    sender_phone: "0992222222",
+    sender_address: "Chanayethazan, Mandalay",
+    recipient_name: "Ma Su",
+    recipient_phone: "0970002222",
+    recipient_address: "Ahlone, Yangon",
+    product_name: "Cosmetics",
+    product_weight: 0.5,
+    product_qty: 1,
+    payment_term: "PREPAID",
+    delivery_fee_mmks: 2500,
+    extra_weight_charges: 0,
+    cod_amount_mmks: 0,
+    total_collectable_amount: 0,
+    rider_remark: "Fragile",
+    status: "in_transit",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: "way-3",
+    tracking_number: "BEX-YGN-0003",
+    sender_name: "Tech Store",
+    sender_phone: "0993333333",
+    sender_address: "Hlaing, Yangon",
+    recipient_name: "Ko Kyaw",
+    recipient_phone: "0970003333",
+    recipient_address: "Mayangone, Yangon",
+    product_name: "Headphones",
+    product_weight: 0.8,
+    product_qty: 1,
+    payment_term: "COD",
+    delivery_fee_mmks: 2500,
+    extra_weight_charges: 0,
+    cod_amount_mmks: 45000,
+    total_collectable_amount: 47500,
+    rider_remark: "Call before delivery",
+    status: "out_for_delivery",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: "way-4",
+    tracking_number: "BEX-YGN-0004",
+    sender_name: "Local Shop",
+    sender_phone: "0994444444",
+    sender_address: "Insein, Yangon",
+    recipient_name: "Daw Mya",
+    recipient_phone: "0970004444",
+    recipient_address: "Tamwe, Yangon",
+    product_name: "Groceries",
+    product_weight: 5.0,
+    product_qty: 3,
+    payment_term: "PREPAID",
+    delivery_fee_mmks: 4000,
+    extra_weight_charges: 1500,
+    cod_amount_mmks: 0,
+    total_collectable_amount: 0,
+    rider_remark: "",
+    status: "delivered",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: "way-5",
+    tracking_number: "BEX-YGN-0005",
+    sender_name: "Online Seller",
+    sender_phone: "0995555555",
+    sender_address: "Sanchaung, Yangon",
+    recipient_name: "Mg Mg",
+    recipient_phone: "0970005555",
+    recipient_address: "Dagon, Yangon",
+    product_name: "Shoes",
+    product_weight: 1.0,
+    product_qty: 1,
+    payment_term: "COD",
+    delivery_fee_mmks: 3000,
+    extra_weight_charges: 0,
+    cod_amount_mmks: 15000,
+    total_collectable_amount: 18000,
+    rider_remark: "Customer not answering",
+    status: "delivery_failed",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+];
 
-const WAYS_API = "/api/v1/ways";
-const WAYS_STATUS_API = "/api/v1/ways"; // Change this if your backend uses a different PATCH endpoint.
+const MOCK_METRICS: ApiWayMetrics = {
+  active: 3,
+  success: 1,
+  failures: 1,
+  returns: 0,
+  all_ways: 5,
+};
+// -----------------
 
 const inter = Inter({
   subsets: ["latin"],
@@ -481,20 +595,11 @@ function WayManagementClient() {
     refresh ? setRefreshing(true) : setLoading(true);
 
     try {
-      const res = await fetch(WAYS_API, {
-        method: "GET",
-        headers: { "Content-Type": "application/json" },
-        cache: "no-store",
-      });
+      // Simulate network delay
+      await new Promise((resolve) => setTimeout(resolve, 800));
 
-      const json = (await res.json().catch(() => null)) as ApiWayResponse | null;
-
-      if (!res.ok) {
-        throw new Error(json?.message || "Request failed");
-      }
-
-      const shipmentRows = (json?.data || []).map(normalizeApiRow);
-      setApiMetrics(json?.metrics || null);
+      const shipmentRows = MOCK_WAYS.map(normalizeApiRow);
+      setApiMetrics(MOCK_METRICS);
       setRows(shipmentRows);
       setSelected((current) => {
         if (!current?.tracking_number) return shipmentRows[0] || null;
@@ -596,52 +701,18 @@ function WayManagementClient() {
     setErrorMsg("");
 
     try {
-      const res = await fetch(WAYS_STATUS_API, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: row.id,
-          tracking_no: row.tracking_number,
-          tracking_number: row.tracking_number,
-          current_status: nextStatus,
-          status: nextStatus,
-        }),
-      });
+      // Simulate network delay
+      await new Promise((resolve) => setTimeout(resolve, 600));
 
-      const json = (await res.json().catch(() => null)) as ApiWayResponse | ApiWayRecord | null;
-
-      if (!res.ok) {
-        throw new Error("Status update failed");
-      }
-
-      const maybeUpdatedRow = (() => {
-        if (!json || Array.isArray(json)) return null;
-        if ("data" in json) {
-          const payload = Array.isArray(json.data) ? json.data[0] : undefined;
-          return payload ? normalizeApiRow(payload) : null;
-        }
-        return normalizeApiRow(json as ApiWayRecord);
-      })();
-
-      if (maybeUpdatedRow) {
-        setRows((current) =>
-          current.map((item) =>
-            item.tracking_number === tracking ? maybeUpdatedRow : item,
-          ),
-        );
-        setSelected((current) =>
-          current?.tracking_number === tracking ? maybeUpdatedRow : current,
-        );
-      } else {
-        setRows((current) =>
-          current.map((item) =>
-            item.tracking_number === tracking ? { ...item, status: nextStatus } : item,
-          ),
-        );
-        setSelected((current) =>
-          current?.tracking_number === tracking ? { ...current, status: nextStatus } : current,
-        );
-      }
+      // Optimistically update the UI
+      setRows((current) =>
+        current.map((item) =>
+          item.tracking_number === tracking ? { ...item, status: nextStatus } : item,
+        ),
+      );
+      setSelected((current) =>
+        current?.tracking_number === tracking ? { ...current, status: nextStatus } : current,
+      );
     } catch {
       setErrorMsg(
         copyFor(
@@ -657,7 +728,7 @@ function WayManagementClient() {
 
   const openAddressInMap = (address?: string | null) => {
     if (!address) return;
-    window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`, "_blank");
+    window.open(`http://googleusercontent.com/maps.google.com/?q=${encodeURIComponent(address)}`, "_blank");
   };
 
   const tabs = tabLabels(language);
