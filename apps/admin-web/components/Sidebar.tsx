@@ -536,7 +536,7 @@ function useSidebarAccessContext(): SidebarAccessContext {
         ] = await Promise.all([
           supabase
             .from("profiles")
-            .select("id,email,role,status,display_name")
+           .select("id,email,role,status")
             .eq("id", authUser.id)
             .maybeSingle<ProfileRow>(),
           supabase
