@@ -1166,7 +1166,7 @@ export default function SettingsAuthorizationPortal() {
                   "Role default portal access ကို အလိုအလျောက်ပေးမည်",
                 )}
               </label>
-            </<>
+            </>
           ) : null}
         </div>
 
