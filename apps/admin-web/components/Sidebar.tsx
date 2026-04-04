@@ -529,12 +529,16 @@ function useSidebarAccessContext(): SidebarAccessContext {
           return;
         }
 
-        const [{ data: profile, error: profileError }, { data: roleDefaults }, { data: userGrants }] = await Promise.all([
+        const [
+          { data: profile, error: profileError },
+          { data: roleDefaults, error: roleDefaultsError },
+          { data: userGrants, error: userGrantsError },
+        ] = await Promise.all([
           supabase
             .from("profiles")
             .select("id,email,role,status,display_name")
             .eq("id", authUser.id)
-            .single<ProfileRow>(),
+            .maybeSingle<ProfileRow>(), // Fix: .maybeSingle() prevents throwing an error on 0 rows
           supabase
             .from("role_default_permissions")
             .select("role,permission_code")
@@ -546,7 +550,10 @@ function useSidebarAccessContext(): SidebarAccessContext {
             .returns<UserPermissionGrantRow[]>(),
         ]);
 
+        // Only throw actual query execution errors
         if (profileError) throw profileError;
+        if (roleDefaultsError) throw roleDefaultsError;
+        if (userGrantsError) throw userGrantsError;
 
         const role = normalizeRole(profile?.role);
         const { allowSet, denySet } = buildEffectivePermissionSet(role, roleDefaults || [], userGrants || []);
@@ -569,7 +576,8 @@ function useSidebarAccessContext(): SidebarAccessContext {
             profile: null,
             effectivePermissions: new Set<PortalPermission>(),
             deniedPermissions: new Set<PortalPermission>(),
-            error: error instanceof Error ? error.message : "Unable to resolve sidebar access.",
+            // Fix: properly extract PostgREST error messages
+            error: (error as any)?.message || "Unable to resolve sidebar access.",
           });
         }
       }
