@@ -14,18 +14,12 @@
     "noEmit": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": [
-        "./*"
-      ],
-      "@lib/*": [
-        "../../lib/*"
-      ],
-      "@britium/shared": [
-        "../../packages/shared/src/index.ts"
-      ],
-      "@britium/shared/*": [
-        "../../packages/shared/src/*"
-      ]
+      "@/*": ["./*"],
+      "@components/*": ["./components/*"],
+      "@features/*": ["./features/*"],
+      "@lib/*": ["../../lib/*"],
+      "@britium/shared": ["../../packages/shared/src/index.ts"],
+      "@britium/shared/*": ["../../packages/shared/src/*"]
     },
     "allowJs": false,
     "resolveJsonModule": true,
@@ -46,10 +40,8 @@
     "lib/**/*.tsx",
     "types/**/*.d.ts",
     "middleware.ts",
-    "proxy.ts",
     "next.config.ts",
-    ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts"
+    ".next/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"
