@@ -1,26 +1,173 @@
 @import "tailwindcss";
 
+@plugin "tailwindcss-animate";
+
+@custom-variant dark (&:is(.dark *));
+
 @theme {
-  --color-slate-950: #02040a;
-  --breakpoint-xs: 320px;
+  /* Typography */
+  --font-sans: var(--font-en), var(--font-my), "Pyidaungsu", "Noto Sans Myanmar", sans-serif;
+  
+  /* Color Mapping - Ensures utility classes like bg-primary or text-success work */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  
+  --color-border: var(--border);
+  --color-input: var(--input);
+
+  /* Spacing & Radius */
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 12px);
+  --radius-3xl: calc(var(--radius) + 20px);
+
+  /* Elevation System */
+  --shadow-premium: 0 10px 30px -10px rgba(13, 44, 84, 0.1);
+  --shadow-elevated: 0 20px 40px -15px rgba(13, 44, 84, 0.15);
 }
 
-/* Luxury 3D Acrylic & Jelly Physics */
-@utility acrylic-3d {
-  background: rgba(255, 255, 255, 0.03);
-  backdrop-filter: blur(25px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.1);
+:root {
+  /* Enterprise Slate & Azure Palette */
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  
+  --primary: #0d2c54;
+  --primary-foreground: #ffffff;
+  
+  --secondary: #f1f5f9;
+  --secondary-foreground: #1e293b;
+  
+  --accent: #ffd700;
+  --accent-foreground: #0d2c54;
+  
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+
+  --card: rgba(255, 255, 255, 0.85);
+  --card-foreground: #0f172a;
+  
+  --border: #e2e8f0;
+  --input: #ffffff;
+
+  --radius: 1rem;
+  
+  --transition-speed: 0.3s;
+  --transition-bezier: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-@utility jelly-button {
-  transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  &:active {
-    transform: scale(0.92) translateY(4px);
+.dark {
+  --background: #020617;
+  --foreground: #f8fafc;
+  --card: rgba(15, 23, 42, 0.8);
+  --border: #1e293b;
+  --primary: #38bdf8;
+  --input: #0f172a;
+}
+
+@layer base {
+  * { 
+    /* Use var directly to avoid 'unknown utility' errors during early compilation */
+    border-color: var(--border); 
+  }
+  
+  body { 
+    background-color: var(--background);
+    color: var(--foreground);
+    font-feature-settings: "rlig" 1, "calt" 1;
+    /* Subtle brand watermark background */
+    background-image: radial-gradient(at 0% 0%, rgba(13, 44, 84, 0.03) 0px, transparent 50%),
+                      radial-gradient(at 100% 0%, rgba(255, 215, 0, 0.02) 0px, transparent 50%);
+    @apply antialiased;
+  }
+
+  ::selection {
+    background-color: rgba(191, 219, 254, 0.5); /* blue-200/50 */
+    color: var(--primary);
   }
 }
 
-body {
-  @apply bg-black text-white antialiased;
-  background: radial-gradient(circle at 50% 30%, #1e1b4b 0%, #000000 100%);
+@layer components {
+  /* High-end Surfaces */
+  .surface {
+    @apply bg-card backdrop-blur-xl border border-white/40 shadow-premium rounded-[2rem] transition-all duration-500;
+  }
+  
+  .surface-hover {
+    @apply hover:shadow-elevated hover:-translate-y-1 active:translate-y-0 active:scale-[0.99];
+  }
+
+  /* Form Architecture */
+  .field-shell {
+    /* REMOVED 'group' as it cannot be @applied in v4 */
+    @apply flex flex-col gap-1.5;
+  }
+
+  .input-premium {
+    @apply w-full bg-white/60 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-semibold outline-none
+           transition-all duration-300 placeholder:text-slate-400 placeholder:font-normal
+           focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/5
+           disabled:opacity-50 disabled:bg-slate-100 disabled:cursor-not-allowed;
+  }
+
+  /* Enterprise Action Controls */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2.5 px-7 py-4 rounded-2xl font-black uppercase tracking-[0.1em] text-[10px] 
+           transition-all duration-300 active:scale-95 disabled:opacity-50 disabled:pointer-events-none;
+  }
+
+  .btn-primary {
+    @apply bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:bg-slate-800 hover:shadow-primary/30;
+  }
+
+  .btn-secondary {
+    @apply bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300 hover:shadow-sm;
+  }
+
+  /* Status Data Indicators */
+  .chip {
+    @apply inline-flex items-center px-3.5 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest border;
+  }
+}
+
+/* Custom Refined Scrollbar */
+@utility elevated-scroll {
+  &::-webkit-scrollbar { width: 6px; }
+  &::-webkit-scrollbar-track { background: transparent; }
+  &::-webkit-scrollbar-thumb { 
+    background-color: #cbd5e1; 
+    border-radius: 9999px;
+    border: 1px solid transparent;
+    background-clip: content-box;
+  }
+  &::-webkit-scrollbar-thumb:hover { background-color: #94a3b8; }
+}
+
+/* Global Motion Foundations */
+.transition-premium {
+  transition: all 0.5s var(--transition-bezier);
+}
+
+/* Updated v4 animation syntax */
+.animate-fade-in {
+  @apply animate-in fade-in duration-500;
+}
+
+.animate-slide-up {
+  @apply animate-in fade-in slide-in-from-bottom-4 duration-700;
 }

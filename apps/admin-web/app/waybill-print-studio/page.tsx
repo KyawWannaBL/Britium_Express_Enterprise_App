@@ -1,153 +1,105 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import React, { useState } from "react";
+import { motion } from "framer-motion";
+import { Printer, Search, QrCode, Download } from "lucide-react";
 
-export default function WaybillPrintStudioPage() {
-  const [waybills, setWaybills] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selected, setSelected] = useState<string[]>([]);
-  const [printing, setPrinting] = useState(false);
+export default function PrintStudio() {
+  const [tracking, setTracking] = useState("");
 
-  const fetchWaybills = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch('/api/v1/waybills');
-      const json = await res.json();
-      if (json.data) setWaybills(json.data);
-    } catch (err) {
-      console.error("Failed to fetch waybills");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const fadeUp = { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300 } } };
 
-  useEffect(() => { fetchWaybills(); }, []);
-
-  const toggleSelect = (tracking: string) => {
-    setSelected(prev => prev.includes(tracking) ? prev.filter(t => t !== tracking) : [...prev, tracking]);
-  };
-
-  const handlePrint = () => {
-    if (selected.length === 0) return alert("Select at least one waybill to print.");
-    
-    // Switch to Print Mode layout
-    setPrinting(true);
-    
-    // Wait a split second for React to render the print layout, then trigger browser print
-    setTimeout(() => {
-      window.print();
-      
-      // When the user closes the print dialog, return to normal mode
-      setPrinting(false);
-    }, 500);
-  };
-
-  // --- PRINT ONLY LAYOUT ---
-  // This layout only appears when the 'printing' state is true.
-  if (printing) {
-     return (
-       <div className="p-8 bg-white min-h-screen text-black">
-         {waybills.filter(w => selected.includes(w.tracking_no)).map(w => (
-           <div key={w.tracking_no} className="border-4 border-black p-6 mb-8 rounded-xl break-inside-avoid">
-             <div className="flex justify-between items-center border-b-4 border-black pb-4 mb-4">
-               <div>
-                 <h1 className="text-4xl font-black italic tracking-tighter">BRITIUM EXPRESS</h1>
-                 <p className="text-xs font-bold uppercase tracking-widest mt-1">Official Waybill / Dispatch Record</p>
-               </div>
-               <div className="text-right">
-                 <p className="font-mono text-3xl font-bold">{w.tracking_no}</p>
-                 {/* Visual Barcode Simulator */}
-                 <div className="flex gap-[2px] h-12 mt-2 w-56 bg-black ml-auto" style={{ backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 2px, white 2px, white 4px, transparent 4px, transparent 8px, white 8px, white 10px)'}}></div>
-               </div>
-             </div>
-             <div className="grid grid-cols-2 gap-8 text-xl">
-               <div>
-                 <p className="text-sm font-bold text-gray-500 uppercase mb-1">Deliver To:</p>
-                 <p className="font-black text-3xl">{w.recipient_name}</p>
-                 <p className="mt-2 text-gray-700">{w.address || 'Address registered in system'}</p>
-                 <p className="mt-2 font-bold text-gray-700">Phone: {w.phone_1 || 'Registered on file'}</p>
-               </div>
-               <div className="text-right flex flex-col justify-end">
-                 <p className="text-sm font-bold text-gray-500 uppercase mb-1">Collect Amount (COD):</p>
-                 <p className="font-black text-5xl">{w.cod_amount?.toLocaleString() || 0} <span className="text-2xl">MMK</span></p>
-               </div>
-             </div>
-           </div>
-         ))}
-       </div>
-     );
-  }
-
-  // --- STANDARD DASHBOARD LAYOUT ---
   return (
-    <div className="p-6">
-      <div className="mb-8 flex justify-between items-end">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800">WAYBILL PRINT STUDIO / ဝေးဘေလ်ပုံနှိပ်ခန်း</h1>
-          <p className="text-sm text-slate-500">Print labels, manifests, and barcode-ready waybills.</p>
-        </div>
-        <div className="flex gap-3">
-          <button onClick={fetchWaybills} className="bg-white border border-slate-200 text-slate-700 font-bold py-2 px-4 rounded hover:bg-slate-50 transition-colors">
-            REFRESH
-          </button>
-          <button onClick={handlePrint} className="bg-yellow-400 hover:bg-yellow-500 text-slate-900 font-bold py-2 px-6 rounded transition-colors flex items-center gap-2">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
-            PRINT SELECTED ({selected.length})
-          </button>
-        </div>
-      </div>
+    <div className="min-h-screen bg-[#f8fafc] p-6 md:p-10 font-sans pb-24">
+      <motion.div initial="hidden" animate="visible" variants={{ visible: { transition: { staggerChildren: 0.1 } } }} className="max-w-6xl mx-auto space-y-10">
+        
+        <motion.div variants={fadeUp}>
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-200/50 text-slate-600 mb-4 border border-slate-300/50">
+            <Printer size={14} className="stroke-[2.5]" />
+            <span className="text-[10px] font-black uppercase tracking-[0.2em]">Logistics Tools</span>
+          </div>
+          <h1 className="text-4xl lg:text-5xl font-black tracking-tight text-[#0d2c54]">
+            Print <span className="font-light italic text-blue-500">Studio</span>
+          </h1>
+          <p className="mt-3 text-sm font-medium text-slate-500 max-w-2xl leading-relaxed">
+            Generate and print operational manifests, standard A6 thermal labels, and A4 batch sheets for hub routing.
+          </p>
+        </motion.div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center gap-4">
-          <div className="p-3 bg-blue-50 text-blue-600 rounded-lg"><svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2z"></path></svg></div>
-          <div><p className="text-xs font-bold text-slate-400">STATUS</p><p className="font-bold text-slate-700">Online</p></div>
-        </div>
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center gap-4">
-          <div className="p-3 bg-green-50 text-green-600 rounded-lg"><svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg></div>
-          <div><p className="text-xs font-bold text-slate-400">QUEUE</p><p className="font-bold text-slate-700">{selected.length} Pending</p></div>
-        </div>
-      </div>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          {/* Controls */}
+          <motion.div variants={fadeUp} className="lg:col-span-5">
+            <div className="bg-white/80 backdrop-blur-xl border border-slate-200/60 p-8 rounded-[2.5rem] shadow-sm">
+              <h3 className="font-black text-[#0d2c54] text-xs uppercase tracking-[0.2em] border-b border-slate-100 pb-4 mb-6">Job Configuration</h3>
+              
+              <div className="space-y-5">
+                <div className="relative shadow-sm rounded-2xl">
+                  <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                  <input 
+                    value={tracking} onChange={(e) => setTracking(e.target.value)}
+                    placeholder="Scan Tracking ID..." 
+                    className="w-full pl-14 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all" 
+                  />
+                </div>
+                
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2 mb-2 block">Format</label>
+                  <select className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-black text-sm text-[#0d2c54] outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all">
+                    <option>Standard A6 Thermal Label</option>
+                    <option>A4 Batch Print (4 per page)</option>
+                    <option>Hub Dispatch Manifest</option>
+                  </select>
+                </div>
 
-      {/* Database Table */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-        <table className="w-full text-sm text-left">
-          <thead className="text-xs text-slate-500 uppercase bg-slate-50 border-b">
-            <tr>
-              <th className="px-6 py-4 w-16">
-                <input type="checkbox" onChange={(e) => {
-                  if (e.target.checked) setSelected(waybills.map(w => w.tracking_no));
-                  else setSelected([]);
-                }} checked={selected.length === waybills.length && waybills.length > 0} />
-              </th>
-              <th className="px-6 py-4">Tracking No.</th>
-              <th className="px-6 py-4">Customer</th>
-              <th className="px-6 py-4">Current Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan={4} className="px-6 py-8 text-center text-slate-400">Loading print queue...</td></tr>
-            ) : waybills.length === 0 ? (
-              <tr><td colSpan={4} className="px-6 py-8 text-center text-slate-400">No shipments found.</td></tr>
-            ) : (
-              waybills.map((w) => (
-                <tr key={w.id} className={`border-b transition-colors ${selected.includes(w.tracking_no) ? 'bg-blue-50/50' : 'hover:bg-slate-50'}`}>
-                  <td className="px-6 py-4">
-                    <input type="checkbox" checked={selected.includes(w.tracking_no)} onChange={() => toggleSelect(w.tracking_no)} />
-                  </td>
-                  <td className="px-6 py-4 font-mono font-bold text-slate-700">{w.tracking_no}</td>
-                  <td className="px-6 py-4">{w.recipient_name}</td>
-                  <td className="px-6 py-4">
-                    <span className="px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-200 text-slate-700">
-                      {w.current_status.replace('_', ' ')}
-                    </span>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="w-full bg-gradient-to-r from-[#0d2c54] to-blue-900 text-[#ffd700] py-5 rounded-2xl font-black uppercase tracking-widest shadow-[0_10px_30px_rgba(13,44,84,0.3)] flex items-center justify-center gap-3 mt-4">
+                  <Printer size={20}/> Execute Print Job
+                </motion.button>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Preview */}
+          <motion.div variants={fadeUp} className="lg:col-span-7 bg-slate-200/50 p-8 rounded-[3rem] border-4 border-dashed border-slate-300/50 flex items-center justify-center overflow-hidden relative">
+            
+            {/* The Physical Label Mockup */}
+            <motion.div 
+              initial={{ rotate: -2, y: 20, opacity: 0 }}
+              animate={{ rotate: 1, y: 0, opacity: 1 }}
+              transition={{ type: "spring", stiffness: 100, delay: 0.2 }}
+              className="w-[380px] bg-white shadow-[0_20px_60px_rgba(0,0,0,0.15)] p-8 border-2 border-slate-900 flex flex-col relative"
+            >
+              {/* Fake Tape on top */}
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-32 h-6 bg-white/40 backdrop-blur-sm border border-slate-200/50 transform rotate-1"></div>
+
+              <div className="flex justify-between items-center border-b-[3px] border-slate-900 pb-5 mb-5">
+                <h2 className="text-3xl font-black italic tracking-tighter text-slate-900">BEX</h2>
+                <div className="px-4 py-1.5 bg-slate-900 text-white font-black text-[10px] uppercase tracking-widest">Priority</div>
+              </div>
+              
+              <div className="flex justify-center py-6">
+                <QrCode size={140} className="text-slate-900" />
+              </div>
+              
+              <div className="text-center mb-6">
+                <p className="font-mono font-black text-2xl tracking-[0.2em] text-slate-900">{tracking || "BEX-99201-YGN"}</p>
+              </div>
+              
+              <div className="border-t-[3px] border-slate-900 pt-5 grid grid-cols-2 gap-6">
+                <div>
+                  <p className="text-[9px] font-black uppercase text-slate-500 mb-1">To:</p>
+                  <p className="font-bold text-sm text-slate-900 leading-snug">U Hlaing Min<br/>Yangon, Myanmar</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[9px] font-black uppercase text-slate-500 mb-1">COD Amount:</p>
+                  <p className="font-black text-2xl text-slate-900 tracking-tighter">25,000</p>
+                  <p className="text-[10px] font-bold text-slate-500 mt-0.5">MMK</p>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+
+        </div>
+      </motion.div>
     </div>
   );
 }

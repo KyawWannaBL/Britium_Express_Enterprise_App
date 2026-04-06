@@ -1,1471 +1,1051 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useMemo, useState, type ReactNode } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import {
+  Activity,
   AlertTriangle,
-  ArrowDownToLine,
-  ArrowUpToLine,
+  ArrowRightLeft,
+  Bell,
   Boxes,
+  CalendarClock,
+  Camera,
   CheckCircle2,
+  ChevronRight,
   ClipboardCheck,
   Clock3,
-  FileStack,
+  FileSpreadsheet,
+  FileText,
+  Filter,
+  Flag,
+  Forklift,
+  Handshake,
+  Home,
+  Inbox,
+  Loader2,
   MapPinned,
-  PackageCheck,
-  PackageSearch,
+  Package2,
   QrCode,
-  RefreshCw,
-  Route,
   ScanLine,
+  Search,
+  Send,
   ShieldCheck,
-  Signature,
+  Sparkles,
   Truck,
+  Upload,
+  User,
+  Users,
   Warehouse,
-  Workflow,
+  Wrench,
   XCircle,
 } from "lucide-react";
 
-type WorkflowStage = "RECEIVING" | "STAGING" | "STORAGE" | "SHIPPING" | "EXCEPTION";
-type PlanMode = "RIDER" | "DRIVER";
-type SignatureAction = "RECEIVE" | "STAGE" | "STORE" | "DISPATCH" | "EXCEPTION_ACK";
-type ToastTone = "ok" | "warn" | "err";
-
-type WarehouseStats = {
-  inboundPending: number;
-  inWarehouseSorted: number;
-  dispatchReady: number;
-  exceptions: number;
-};
+type Bi = { en: string; my: string };
+type LanguageMode = "en" | "my" | "both";
+type AsyncState = "ready" | "loading" | "empty" | "error";
+type Tone = "blue" | "amber" | "green" | "rose" | "violet" | "slate";
+type TabKey =
+  | "dashboard"
+  | "intake"
+  | "sorting"
+  | "transfers"
+  | "inventory"
+  | "staging"
+  | "exceptions"
+  | "returns"
+  | "handover"
+  | "scanqc"
+  | "workforce"
+  | "reports"
+  | "notifications"
+  | "profile";
 
 type ParcelStatus =
-  | "INBOUND_PENDING"
-  | "RECEIVED"
-  | "STAGED"
-  | "STORED"
-  | "DISPATCH_READY"
-  | "DISPATCHED"
-  | "EXCEPTION";
+  | "Received"
+  | "Scanned"
+  | "Sorted"
+  | "Staged"
+  | "Transferred"
+  | "Exception"
+  | "Returned"
+  | "Handed Over";
 
-type Parcel = {
+type ParcelRecord = {
   id: string;
   trackingNo: string;
-  qrValue: string;
-  branchId: string;
-  currentHubId: string;
-  destinationTownship: string;
-  destinationLat: number;
-  destinationLng: number;
-  wayPlanStopOrder: number;
-  assignedRiderId?: string;
-  assignedDriverId?: string;
-  routeCode: string;
-  manifestNo?: string;
-  cageCode?: string;
-  shelfCode?: string;
-  bagCode?: string;
-  status: ParcelStatus;
-  receivedAt?: string;
-  stagedAt?: string;
-  storedAt?: string;
-  dispatchReadyAt?: string;
-  exceptionReason?: string;
-  serviceType: "SAME_DAY" | "NEXT_DAY" | "LINEHAUL";
-  weightKg: number;
+  merchant: string;
+  destination: string;
+  zone: string;
+  pieces: number;
+  codAmount: number;
+  currentBin: string;
+  currentStatus: ParcelStatus;
+  inboundTime: string;
+  nextAction: string;
 };
 
-type BranchOffice = {
+type TransferRecord = {
   id: string;
-  name: string;
-  code: string;
-  isHeadOffice: boolean;
-  startPoint: {
-    lat: number;
-    lng: number;
-    label: string;
-  };
-};
-
-type StorageSlot = {
-  code: string;
-  lane: string;
-  level: number;
-  maxItems: number;
-  currentItems: number;
-};
-
-type PlanRow = {
-  assigneeId: string;
-  assigneeName: string;
-  mode: PlanMode;
-  startPointLabel: string;
-  startLat: number;
-  startLng: number;
+  batchNo: string;
+  route: string;
+  vehicle: string;
   parcelCount: number;
-  parcels: Array<{
-    trackingNo: string;
-    destinationTownship: string;
-    wayPlanStopOrder: number;
-    loadSequence: number;
-    unloadSequence: number;
-    recommendedSlot: string;
-    routeCode: string;
-  }>;
+  status: Bi;
+  departureTime: string;
+  arrivalEta: string;
 };
 
-type ScanAudit = {
+type ExceptionRecord = {
   id: string;
   trackingNo: string;
-  action: SignatureAction;
-  stage: WorkflowStage;
-  operatorName: string;
-  scannedAt: string;
-  branchName: string;
-  status: "SUCCESS" | "FAILED";
-  remarks?: string;
+  issue: Bi;
+  severity: Tone;
+  note: Bi;
+  status: Bi;
+  updatedAt: string;
 };
 
-type SignaturePayload = {
-  trackingNo: string;
-  action: SignatureAction;
-  signerName: string;
-  signerRole: string;
-  signatureDataUrl: string;
-  signedAt: string;
+type WorkforceTask = {
+  id: string;
+  member: string;
+  role: string;
+  station: string;
+  assignedCount: number;
+  completion: number;
+  shift: string;
 };
 
-type ScanResult = {
-  trackingNo: string;
-  status: "SUCCESS" | "ERROR";
-  message: string;
+type NotificationItem = {
+  id: string;
+  title: Bi;
+  body: Bi;
+  time: string;
+  unread: boolean;
+  tone: Tone;
 };
 
-type ApiEnvelope<T> = {
-  data: T;
-  message?: string;
-};
+const BI = (en: string, my: string): Bi => ({ en, my });
 
-const HEAD_OFFICE_COORDINATES = {
-  lat: 16.8895537,
-  lng: 96.1996749,
-  label: "Britium Head Office",
-};
-
-const DEMO_BRANCHES: BranchOffice[] = [
-  {
-    id: "ho-ygn",
-    name: "Head Office Yangon",
-    code: "HO-YGN",
-    isHeadOffice: true,
-    startPoint: HEAD_OFFICE_COORDINATES,
-  },
-  {
-    id: "br-mdy",
-    name: "Mandalay Branch",
-    code: "BR-MDY",
-    isHeadOffice: false,
-    startPoint: { lat: 21.975, lng: 96.0836, label: "Mandalay Branch" },
-  },
-  {
-    id: "br-npt",
-    name: "Naypyitaw Branch",
-    code: "BR-NPT",
-    isHeadOffice: false,
-    startPoint: { lat: 19.7644, lng: 96.0785, label: "Naypyitaw Branch" },
-  },
+const tabs: Array<{ id: TabKey; label: Bi; icon: React.ComponentType<{ size?: number; className?: string }> }> = [
+  { id: "dashboard", label: BI("Dashboard", "ပင်မအနှစ်ချုပ်"), icon: Home },
+  { id: "intake", label: BI("Inbound Intake", "ဝင်လာသောကုန်လက်ခံမှု"), icon: Package2 },
+  { id: "sorting", label: BI("Sorting Lane", "ခွဲခြားသတ်မှတ်မှုလိုင်း"), icon: Boxes },
+  { id: "transfers", label: BI("Hub Transfers", "hub လွှဲပြောင်းမှုများ"), icon: ArrowRightLeft },
+  { id: "inventory", label: BI("Bins & Inventory", "bin နှင့် inventory") , icon: Warehouse },
+  { id: "staging", label: BI("Dispatch Staging", "dispatch staging") , icon: Truck },
+  { id: "exceptions", label: BI("Exceptions", "exception များ"), icon: AlertTriangle },
+  { id: "returns", label: BI("Returns / RTS", "return / RTS") , icon: Flag },
+  { id: "handover", label: BI("Rider Handover", "rider လွှဲပြောင်းမှု") , icon: Handshake },
+  { id: "scanqc", label: BI("Scan & QC", "scan နှင့် QC") , icon: ScanLine },
+  { id: "workforce", label: BI("Workforce", "လုပ်သားအင်အား") , icon: Users },
+  { id: "reports", label: BI("Reports", "အစီရင်ခံစာများ"), icon: FileSpreadsheet },
+  { id: "notifications", label: BI("Notifications", "အသိပေးချက်များ"), icon: Bell },
+  { id: "profile", label: BI("Hub Profile", "hub ပရိုဖိုင်") , icon: User },
 ];
 
-const DEMO_SLOTS: StorageSlot[] = [
-  { code: "A-01", lane: "A", level: 1, maxItems: 12, currentItems: 5 },
-  { code: "A-02", lane: "A", level: 2, maxItems: 12, currentItems: 6 },
-  { code: "B-01", lane: "B", level: 1, maxItems: 10, currentItems: 4 },
-  { code: "B-02", lane: "B", level: 2, maxItems: 10, currentItems: 3 },
-  { code: "C-01", lane: "C", level: 1, maxItems: 16, currentItems: 8 },
-  { code: "OUT-01", lane: "OUT", level: 1, maxItems: 30, currentItems: 10 },
-];
-
-const DEMO_PARCELS: Parcel[] = [
+const parcels: ParcelRecord[] = [
   {
     id: "p1",
-    trackingNo: "BEX-YGN-1001",
-    qrValue: "BEX-YGN-1001",
-    branchId: "ho-ygn",
-    currentHubId: "ho-ygn",
-    destinationTownship: "Kamayut",
-    destinationLat: 16.8265,
-    destinationLng: 96.1308,
-    wayPlanStopOrder: 1,
-    assignedRiderId: "rider-01",
-    routeCode: "YGN-KMY-01",
-    manifestNo: "MAN-YGN-001",
-    status: "INBOUND_PENDING",
-    serviceType: "SAME_DAY",
-    weightKg: 1.2,
+    trackingNo: "BEX-W-51001",
+    merchant: "Britium Ventures",
+    destination: "Sanchaung, Yangon",
+    zone: "YGN-Central",
+    pieces: 1,
+    codAmount: 35000,
+    currentBin: "BIN-A12",
+    currentStatus: "Staged",
+    inboundTime: "09:15 AM",
+    nextAction: "Rider handover",
   },
   {
     id: "p2",
-    trackingNo: "BEX-YGN-1002",
-    qrValue: "BEX-YGN-1002",
-    branchId: "ho-ygn",
-    currentHubId: "ho-ygn",
-    destinationTownship: "Bahan",
-    destinationLat: 16.8147,
-    destinationLng: 96.1561,
-    wayPlanStopOrder: 3,
-    assignedRiderId: "rider-01",
-    routeCode: "YGN-BAH-01",
-    manifestNo: "MAN-YGN-001",
-    status: "RECEIVED",
-    receivedAt: new Date().toISOString(),
-    serviceType: "SAME_DAY",
-    weightKg: 0.8,
+    trackingNo: "BEX-W-51002",
+    merchant: "City Fresh",
+    destination: "Chanmyathazi, Mandalay",
+    zone: "MDY-Central",
+    pieces: 2,
+    codAmount: 0,
+    currentBin: "BIN-T03",
+    currentStatus: "Transferred",
+    inboundTime: "08:50 AM",
+    nextAction: "In linehaul",
   },
   {
     id: "p3",
-    trackingNo: "BEX-YGN-1003",
-    qrValue: "BEX-YGN-1003",
-    branchId: "ho-ygn",
-    currentHubId: "ho-ygn",
-    destinationTownship: "Mingaladon",
-    destinationLat: 16.9004,
-    destinationLng: 96.1418,
-    wayPlanStopOrder: 2,
-    assignedRiderId: "rider-02",
-    routeCode: "YGN-MGL-02",
-    manifestNo: "MAN-YGN-002",
-    status: "STAGED",
-    receivedAt: new Date().toISOString(),
-    stagedAt: new Date().toISOString(),
-    serviceType: "NEXT_DAY",
-    weightKg: 2.4,
+    trackingNo: "BEX-W-51003",
+    merchant: "Golden Shop",
+    destination: "North Okkalapa, Yangon",
+    zone: "YGN-North",
+    pieces: 1,
+    codAmount: 18000,
+    currentBin: "QC-HOLD-02",
+    currentStatus: "Exception",
+    inboundTime: "10:05 AM",
+    nextAction: "Damage review",
   },
   {
     id: "p4",
-    trackingNo: "BEX-YGN-1004",
-    qrValue: "BEX-YGN-1004",
-    branchId: "ho-ygn",
-    currentHubId: "ho-ygn",
-    destinationTownship: "Pyinmana",
-    destinationLat: 19.7381,
-    destinationLng: 96.2072,
-    wayPlanStopOrder: 1,
-    assignedDriverId: "driver-01",
-    routeCode: "YGN-NPT-01",
-    manifestNo: "MAN-LH-001",
-    cageCode: "OUT-01",
-    shelfCode: "L1",
-    status: "STORED",
-    storedAt: new Date().toISOString(),
-    serviceType: "LINEHAUL",
-    weightKg: 5.2,
-  },
-  {
-    id: "p5",
-    trackingNo: "BEX-YGN-1005",
-    qrValue: "BEX-YGN-1005",
-    branchId: "ho-ygn",
-    currentHubId: "ho-ygn",
-    destinationTownship: "Aungmyethazan",
-    destinationLat: 21.9822,
-    destinationLng: 96.081,
-    wayPlanStopOrder: 2,
-    assignedDriverId: "driver-01",
-    routeCode: "YGN-MDY-01",
-    manifestNo: "MAN-LH-002",
-    cageCode: "OUT-01",
-    shelfCode: "L2",
-    status: "DISPATCH_READY",
-    dispatchReadyAt: new Date().toISOString(),
-    serviceType: "LINEHAUL",
-    weightKg: 8.3,
-  },
-  {
-    id: "p6",
-    trackingNo: "BEX-YGN-1006",
-    qrValue: "BEX-YGN-1006",
-    branchId: "ho-ygn",
-    currentHubId: "ho-ygn",
-    destinationTownship: "Chanmyathazi",
-    destinationLat: 21.9483,
-    destinationLng: 96.105,
-    wayPlanStopOrder: 4,
-    assignedDriverId: "driver-02",
-    routeCode: "YGN-MDY-02",
-    manifestNo: "MAN-LH-002",
-    status: "EXCEPTION",
-    exceptionReason: "Label damaged during unload",
-    serviceType: "LINEHAUL",
-    weightKg: 1.5,
+    trackingNo: "BEX-W-51004",
+    merchant: "Style Hub",
+    destination: "Bahan, Yangon",
+    zone: "YGN-East",
+    pieces: 3,
+    codAmount: 42000,
+    currentBin: "SORT-C05",
+    currentStatus: "Sorted",
+    inboundTime: "11:12 AM",
+    nextAction: "Dispatch staging",
   },
 ];
 
-const ASSIGNEES = {
-  "rider-01": "Ko Min / Rider 01",
-  "rider-02": "Su Su / Rider 02",
-  "driver-01": "Linehaul Truck 01",
-  "driver-02": "Linehaul Truck 02",
-};
+const transfers: TransferRecord[] = [
+  {
+    id: "t1",
+    batchNo: "TR-APR-110",
+    route: "Yangon Hub → Mandalay Hub",
+    vehicle: "Van 3A",
+    parcelCount: 128,
+    status: BI("Loading", "တင်ဆောင်နေသည်"),
+    departureTime: "04:00 PM",
+    arrivalEta: "Tomorrow 06:30 AM",
+  },
+  {
+    id: "t2",
+    batchNo: "TR-APR-108",
+    route: "Yangon Hub → Bago Branch",
+    vehicle: "Truck 11B",
+    parcelCount: 72,
+    status: BI("Dispatched", "ထွက်ခွာပြီး"),
+    departureTime: "12:30 PM",
+    arrivalEta: "03:00 PM",
+  },
+  {
+    id: "t3",
+    batchNo: "TR-APR-103",
+    route: "Yangon Hub → Naypyitaw Hub",
+    vehicle: "Van 2C",
+    parcelCount: 96,
+    status: BI("Received", "လက်ခံပြီး"),
+    departureTime: "Yesterday 07:00 PM",
+    arrivalEta: "Completed",
+  },
+];
 
-function formatTime(input?: string) {
-  if (!input) return "-";
-  try {
-    return new Date(input).toLocaleString();
-  } catch {
-    return input;
-  }
+const exceptions: ExceptionRecord[] = [
+  {
+    id: "e1",
+    trackingNo: "BEX-W-51003",
+    issue: BI("Damaged Outer Packaging", "အပြင်ထုပ်ပိုးမှု ပျက်စီးနေသည်"),
+    severity: "rose",
+    note: BI("Corner tear found during inbound QC inspection.", "Inbound QC စစ်ဆေးစဉ်အတွင်း ထောင့်ပိုင်းကွဲနေသည်ကိုတွေ့ရှိသည်။"),
+    status: BI("Pending Review", "စစ်ဆေးရန်စောင့်ဆိုင်း"),
+    updatedAt: "11:25 AM",
+  },
+  {
+    id: "e2",
+    trackingNo: "BEX-W-50998",
+    issue: BI("Label Mismatch", "label မကိုက်ညီမှု"),
+    severity: "amber",
+    note: BI("Printed label differs from manifest destination zone.", "ပုံနှိပ်ထားသော label သည် manifest destination zone နှင့်မကိုက်ညီပါ။"),
+    status: BI("Sorting Hold", "sorting hold") ,
+    updatedAt: "10:10 AM",
+  },
+  {
+    id: "e3",
+    trackingNo: "BEX-W-50974",
+    issue: BI("Missing Parcel Piece", "parcel အပိုင်းတစ်ခု ပျောက်ဆုံး"),
+    severity: "rose",
+    note: BI("Shipment count 2 but only 1 piece scanned at dock.", "Shipment count 2 ဖြစ်သော်လည်း dock တွင် 1 piece သာ scan ဝင်ထားသည်။"),
+    status: BI("Escalated", "တိုးမြှင့်တင်ပြပြီး"),
+    updatedAt: "09:32 AM",
+  },
+];
+
+const workforce: WorkforceTask[] = [
+  { id: "w1", member: "Ko Min Thu", role: "Inbound Lead", station: "Dock A", assignedCount: 82, completion: 74, shift: "Morning" },
+  { id: "w2", member: "Daw Hnin Wai", role: "Sorter", station: "Lane C", assignedCount: 126, completion: 88, shift: "Morning" },
+  { id: "w3", member: "Ko Thet Naing", role: "QC Officer", station: "QC Desk 1", assignedCount: 28, completion: 62, shift: "Morning" },
+  { id: "w4", member: "Daw Ei Cho", role: "Dispatch Clerk", station: "Staging 2", assignedCount: 51, completion: 79, shift: "Afternoon" },
+];
+
+const notifications: NotificationItem[] = [
+  {
+    id: "n1",
+    title: BI("Inbound volume exceeded threshold", "ဝင်လာသောကုန်ပမာဏ သတ်မှတ်ချက်ကျော်လွန်နေသည်"),
+    body: BI("Dock A has received 18% more parcels than hourly target.", "Dock A သည် တစ်နာရီပစ်မှတ်ထက် parcel 18% ပိုမိုလက်ခံထားသည်။"),
+    time: "12 min ago",
+    unread: true,
+    tone: "amber",
+  },
+  {
+    id: "n2",
+    title: BI("Transfer batch ready for dispatch", "လွှဲပြောင်း batch ထွက်ခွာရန်အဆင်သင့်ဖြစ်နေသည်"),
+    body: BI("TR-APR-110 has completed loading and awaits final scan release.", "TR-APR-110 သည် loading ပြီးစီးပြီး final scan release ကိုစောင့်ဆိုင်းနေသည်။"),
+    time: "25 min ago",
+    unread: true,
+    tone: "blue",
+  },
+  {
+    id: "n3",
+    title: BI("Damage exception escalated", "ပျက်စီးမှု exception ကိုတိုးမြှင့်တင်ပြထားသည်"),
+    body: BI("BEX-W-50974 requires manager review before staging release.", "BEX-W-50974 ကို staging release မလုပ်မီ မန်နေဂျာစစ်ဆေးရန်လိုအပ်သည်။"),
+    time: "Today",
+    unread: false,
+    tone: "rose",
+  },
+];
+
+function tw(...classes: Array<string | false | null | undefined>) {
+  return classes.filter(Boolean).join(" ");
 }
 
-function badgeClass(status: string) {
-  const s = status.toLowerCase();
-  if (["success", "received", "staged", "stored", "dispatch_ready", "verified"].includes(s)) {
-    return "bg-emerald-100 text-emerald-700";
-  }
-  if (["inbound_pending", "warning"].includes(s)) return "bg-amber-100 text-amber-700";
-  if (["failed", "error", "exception"].includes(s)) return "bg-rose-100 text-rose-700";
-  return "bg-slate-100 text-slate-700";
+function bilingual(mode: LanguageMode, text: Bi) {
+  if (mode === "en") return text.en;
+  if (mode === "my") return text.my;
+  return `${text.en} / ${text.my}`;
 }
 
-async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(url, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(init?.headers ?? {}),
-    },
-  });
-
-  const raw = await res.text();
-  const parsed = raw ? JSON.parse(raw) : {};
-  if (!res.ok) {
-    throw new Error(parsed?.error || parsed?.message || `Request failed: ${res.status}`);
-  }
-  return (parsed?.data ?? parsed) as T;
+function statusTone(value: string): Tone {
+  if (["Received", "Handed Over", "Scanned", "Sorted", "Staged", "Transferred", "Dispatched"].includes(value)) return "green";
+  if (["Loading", "Pending Review", "Sorting Hold"].includes(value)) return "amber";
+  if (["Exception", "Escalated", "Returned"].includes(value)) return "rose";
+  return "blue";
 }
 
-function calculateStats(parcels: Parcel[]): WarehouseStats {
-  return {
-    inboundPending: parcels.filter((p) => p.status === "INBOUND_PENDING").length,
-    inWarehouseSorted: parcels.filter((p) => ["RECEIVED", "STAGED", "STORED"].includes(p.status)).length,
-    dispatchReady: parcels.filter((p) => p.status === "DISPATCH_READY").length,
-    exceptions: parcels.filter((p) => p.status === "EXCEPTION").length,
-  };
-}
-
-function getNextStatus(action: SignatureAction): ParcelStatus {
-  switch (action) {
-    case "RECEIVE":
-      return "RECEIVED";
-    case "STAGE":
-      return "STAGED";
-    case "STORE":
-      return "STORED";
-    case "DISPATCH":
-      return "DISPATCH_READY";
-    case "EXCEPTION_ACK":
-      return "EXCEPTION";
-    default:
-      return "INBOUND_PENDING";
-  }
-}
-
-function getStageFromAction(action: SignatureAction): WorkflowStage {
-  switch (action) {
-    case "RECEIVE":
-      return "RECEIVING";
-    case "STAGE":
-      return "STAGING";
-    case "STORE":
-      return "STORAGE";
-    case "DISPATCH":
-      return "SHIPPING";
-    case "EXCEPTION_ACK":
-      return "EXCEPTION";
-    default:
-      return "RECEIVING";
-  }
-}
-
-function getBestStorageSlot(slots: StorageSlot[], parcel: Parcel) {
-  const eligible = slots
-    .filter((slot) => slot.currentItems < slot.maxItems)
-    .sort((a, b) => {
-      if (parcel.status === "DISPATCH_READY") {
-        if (a.lane === "OUT" && b.lane !== "OUT") return -1;
-        if (b.lane === "OUT" && a.lane !== "OUT") return 1;
-      }
-      return a.currentItems - b.currentItems || a.level - b.level;
-    });
-
-  return eligible[0]?.code ?? "UNASSIGNED";
-}
-
-function buildLifoPlans(parcels: Parcel[], branches: BranchOffice[], slots: StorageSlot[]): PlanRow[] {
-  const ready = parcels.filter((p) => ["STORED", "DISPATCH_READY"].includes(p.status));
-  const buckets = new Map<string, { mode: PlanMode; assigneeName: string; parcels: Parcel[] }>();
-
-  ready.forEach((parcel) => {
-    const mode: PlanMode = parcel.assignedRiderId ? "RIDER" : "DRIVER";
-    const assigneeId = parcel.assignedRiderId ?? parcel.assignedDriverId;
-    if (!assigneeId) return;
-    if (!buckets.has(assigneeId)) {
-      buckets.set(assigneeId, {
-        mode,
-        assigneeName: ASSIGNEES[assigneeId as keyof typeof ASSIGNEES] ?? assigneeId,
-        parcels: [],
-      });
-    }
-    buckets.get(assigneeId)?.parcels.push(parcel);
-  });
-
-  return Array.from(buckets.entries()).map(([assigneeId, bucket]) => {
-    const originBranch = branches.find((b) => b.id === bucket.parcels[0]?.branchId) ?? branches[0];
-
-    // LIFO loading rule:
-    // unloadSequence: stop 1, 2, 3...
-    // loadSequence: reverse of unload so stop 1 is loaded last and becomes most accessible.
-    const orderedForUnload = [...bucket.parcels].sort((a, b) => a.wayPlanStopOrder - b.wayPlanStopOrder);
-    const plannedParcels = orderedForUnload.map((parcel, index) => ({
-      trackingNo: parcel.trackingNo,
-      destinationTownship: parcel.destinationTownship,
-      wayPlanStopOrder: parcel.wayPlanStopOrder,
-      unloadSequence: index + 1,
-      loadSequence: orderedForUnload.length - index,
-      recommendedSlot: parcel.cageCode || getBestStorageSlot(slots, parcel),
-      routeCode: parcel.routeCode,
-    }));
-
-    return {
-      assigneeId,
-      assigneeName: bucket.assigneeName,
-      mode: bucket.mode,
-      startPointLabel: originBranch.startPoint.label,
-      startLat: originBranch.startPoint.lat,
-      startLng: originBranch.startPoint.lng,
-      parcelCount: plannedParcels.length,
-      parcels: plannedParcels,
-    };
-  });
-}
-
-function SignaturePad({ onChange }: { onChange: (dataUrl: string | null) => void }) {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const drawingRef = useRef(false);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.lineWidth = 2;
-    ctx.lineCap = "round";
-    ctx.strokeStyle = "#0d2c54";
-  }, []);
-
-  const getPoint = (event: React.PointerEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return { x: 0, y: 0 };
-    const rect = canvas.getBoundingClientRect();
-    return {
-      x: event.clientX - rect.left,
-      y: event.clientY - rect.top,
-    };
-  };
-
-  const start = (event: React.PointerEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    const ctx = canvas?.getContext("2d");
-    if (!canvas || !ctx) return;
-    drawingRef.current = true;
-    const point = getPoint(event);
-    ctx.beginPath();
-    ctx.moveTo(point.x, point.y);
-  };
-
-  const move = (event: React.PointerEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    const ctx = canvas?.getContext("2d");
-    if (!canvas || !ctx || !drawingRef.current) return;
-    const point = getPoint(event);
-    ctx.lineTo(point.x, point.y);
-    ctx.stroke();
-  };
-
-  const end = () => {
-    const canvas = canvasRef.current;
-    drawingRef.current = false;
-    onChange(canvas?.toDataURL("image/png") ?? null);
-  };
-
-  const clear = () => {
-    const canvas = canvasRef.current;
-    const ctx = canvas?.getContext("2d");
-    if (!canvas || !ctx) return;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    onChange(null);
-  };
-
+function BiText({ text, mode, className = "", secondaryClassName = "", align = "left" }: { text: Bi; mode: LanguageMode; className?: string; secondaryClassName?: string; align?: "left" | "center" }) {
+  if (mode === "en") return <div className={tw(align === "center" && "text-center", className)}>{text.en}</div>;
+  if (mode === "my") return <div className={tw(align === "center" && "text-center", secondaryClassName || className)}>{text.my}</div>;
   return (
-    <div className="space-y-2">
-      <canvas
-        ref={canvasRef}
-        width={720}
-        height={180}
-        className="w-full rounded-2xl border border-slate-200 bg-white"
-        onPointerDown={start}
-        onPointerMove={move}
-        onPointerUp={end}
-        onPointerLeave={end}
-      />
-      <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={clear}
-          className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-500 hover:bg-slate-50"
-        >
-          Clear Signature
-        </button>
+    <div className={align === "center" ? "text-center" : "text-left"}>
+      <div className={className}>{text.en}</div>
+      <div className={secondaryClassName}>{text.my}</div>
+    </div>
+  );
+}
+
+function SurfaceCard({ children, className = "" }: { children: ReactNode; className?: string }) {
+  return (
+    <motion.section initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }} whileHover={{ y: -2 }} className={tw("rounded-[28px] border border-white/70 bg-white/80 p-6 shadow-[0_18px_48px_rgba(15,23,42,0.08)] backdrop-blur-xl", className)}>
+      {children}
+    </motion.section>
+  );
+}
+
+function DarkCard({ children, className = "" }: { children: ReactNode; className?: string }) {
+  return (
+    <motion.section initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }} className={tw("relative overflow-hidden rounded-[30px] border border-[#17375f] bg-[linear-gradient(180deg,#0d2c54_0%,#0a2343_100%)] p-6 text-white shadow-[0_24px_64px_rgba(13,44,84,0.36)]", className)}>
+      <div className="absolute -right-14 -top-14 h-44 w-44 rounded-full bg-[#ffd700]/10 blur-3xl" />
+      <div className="absolute -left-10 bottom-0 h-32 w-32 rounded-full bg-sky-400/10 blur-3xl" />
+      <div className="relative z-10">{children}</div>
+    </motion.section>
+  );
+}
+
+function SectionTitle({ icon, title, subtitle, mode }: { icon: ReactNode; title: Bi; subtitle?: Bi; mode: LanguageMode }) {
+  return (
+    <div className="mb-5 flex items-start gap-3 border-b border-slate-200/80 pb-5">
+      <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-[#0d2c54] shadow-inner">{icon}</div>
+      <div>
+        <BiText mode={mode} text={title} className="text-lg font-black tracking-tight text-[#0d2c54]" secondaryClassName="mt-1 text-sm font-semibold text-slate-500" />
+        {subtitle ? <BiText mode={mode} text={subtitle} className="mt-3 text-sm font-medium leading-6 text-slate-500" secondaryClassName="mt-1 text-sm font-medium leading-6 text-slate-500" /> : null}
       </div>
     </div>
   );
 }
 
-function MapboxStartPointPanel({
-  token,
-  branches,
-  activeBranchId,
-  plans,
-  onUpdateBranchPoint,
-}: {
-  token: string;
-  branches: BranchOffice[];
-  activeBranchId: string;
-  plans: PlanRow[];
-  onUpdateBranchPoint: (branchId: string, lat: number, lng: number) => void;
-}) {
-  const mapNodeRef = useRef<HTMLDivElement | null>(null);
-  const mapInstanceRef = useRef<any>(null);
-  const markersRef = useRef<any[]>([]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function bootstrap() {
-      if (!token || !mapNodeRef.current || mapInstanceRef.current) return;
-      const mapboxgl = (await import("mapbox-gl")).default;
-      if (cancelled) return;
-
-      mapboxgl.accessToken = token;
-      mapInstanceRef.current = new mapboxgl.Map({
-        container: mapNodeRef.current,
-        style: "mapbox://styles/mapbox/standard",
-        center: [HEAD_OFFICE_COORDINATES.lng, HEAD_OFFICE_COORDINATES.lat],
-        zoom: 9,
-      });
-
-      mapInstanceRef.current.addControl(new mapboxgl.NavigationControl(), "top-right");
-    }
-
-    bootstrap();
-    return () => {
-      cancelled = true;
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
-        mapInstanceRef.current = null;
-      }
-    };
-  }, [token]);
-
-  useEffect(() => {
-    async function syncMarkers() {
-      const map = mapInstanceRef.current;
-      if (!map || !token) return;
-      const mapboxgl = (await import("mapbox-gl")).default;
-
-      markersRef.current.forEach((marker) => marker.remove());
-      markersRef.current = [];
-
-      const bounds = new mapboxgl.LngLatBounds();
-
-      branches.forEach((branch) => {
-        const marker = new mapboxgl.Marker({ color: branch.id === activeBranchId ? "#0d2c54" : "#22c55e", draggable: branch.id === activeBranchId })
-          .setLngLat([branch.startPoint.lng, branch.startPoint.lat])
-          .setPopup(
-            new mapboxgl.Popup({ offset: 20 }).setHTML(
-              `<div style='font-weight:700'>${branch.name}</div><div>${branch.startPoint.label}</div>`,
-            ),
-          )
-          .addTo(map);
-
-        if (branch.id === activeBranchId) {
-          marker.on("dragend", () => {
-            const pos = marker.getLngLat();
-            onUpdateBranchPoint(branch.id, Number(pos.lat.toFixed(6)), Number(pos.lng.toFixed(6)));
-          });
-        }
-
-        markersRef.current.push(marker);
-        bounds.extend([branch.startPoint.lng, branch.startPoint.lat]);
-      });
-
-      plans.forEach((plan) => {
-        plan.parcels.slice(0, 4).forEach((parcel, idx) => {
-          const sourceParcel = DEMO_PARCELS.find((p) => p.trackingNo === parcel.trackingNo);
-          if (!sourceParcel) return;
-          const marker = new mapboxgl.Marker({ color: idx % 2 === 0 ? "#f59e0b" : "#ef4444" })
-            .setLngLat([sourceParcel.destinationLng, sourceParcel.destinationLat])
-            .setPopup(
-              new mapboxgl.Popup({ offset: 20 }).setHTML(
-                `<div style='font-weight:700'>${parcel.trackingNo}</div><div>${parcel.destinationTownship}</div><div>Unload #${parcel.unloadSequence}</div>`,
-              ),
-            )
-            .addTo(map);
-          markersRef.current.push(marker);
-          bounds.extend([sourceParcel.destinationLng, sourceParcel.destinationLat]);
-        });
-      });
-
-      if (!bounds.isEmpty()) {
-        map.fitBounds(bounds, { padding: 60, maxZoom: 11 });
-      }
-    }
-
-    syncMarkers();
-  }, [branches, activeBranchId, plans, onUpdateBranchPoint, token]);
-
-  if (!token) {
-    return (
-      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
-        Add <code className="font-mono">NEXT_PUBLIC_MAPBOX_TOKEN</code> to enable start-point mapping and branch marker editing.
-      </div>
-    );
-  }
-
-  return <div ref={mapNodeRef} className="h-[360px] w-full overflow-hidden rounded-2xl border border-slate-200" />;
+function InputShell({ children, icon }: { children: ReactNode; icon?: ReactNode }) {
+  return (
+    <div className="group relative rounded-2xl border border-slate-200/90 bg-white/95 shadow-[0_8px_24px_rgba(15,23,42,0.04)] transition hover:border-slate-300 hover:shadow-[0_12px_28px_rgba(15,23,42,0.08)] focus-within:border-[#0d2c54]/35 focus-within:shadow-[0_0_0_4px_rgba(13,44,84,0.08)]">
+      {icon ? <div className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">{icon}</div> : null}
+      {children}
+    </div>
+  );
 }
 
-export default function WarehousePortalPage() {
-  const [activeStage, setActiveStage] = useState<WorkflowStage>("RECEIVING");
-  const [branches, setBranches] = useState<BranchOffice[]>(DEMO_BRANCHES);
-  const [selectedBranchId, setSelectedBranchId] = useState<string>(DEMO_BRANCHES[0].id);
-  const [slots, setSlots] = useState<StorageSlot[]>(DEMO_SLOTS);
-  const [parcels, setParcels] = useState<Parcel[]>(DEMO_PARCELS);
-  const [auditRows, setAuditRows] = useState<ScanAudit[]>([]);
-  const [scannerInput, setScannerInput] = useState("");
-  const [cameraScanEnabled, setCameraScanEnabled] = useState(false);
-  const [processing, setProcessing] = useState(false);
-  const [toast, setToast] = useState<{ tone: ToastTone; message: string } | null>(null);
-  const [lastScan, setLastScan] = useState<ScanResult | null>(null);
-  const [signatureModal, setSignatureModal] = useState<{
-    open: boolean;
-    trackingNo: string;
-    action: SignatureAction;
-  }>({ open: false, trackingNo: "", action: "RECEIVE" });
-  const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
-  const [signerName, setSignerName] = useState("");
-  const [signerRole, setSignerRole] = useState("");
-  const [exceptionReason, setExceptionReason] = useState("");
-  const [search, setSearch] = useState("");
-  const [loadingRemote, setLoadingRemote] = useState(false);
+function TextInput({ value, onChange, placeholder, type = "text", icon }: { value: string; onChange: (value: string) => void; placeholder: string; type?: string; icon?: ReactNode }) {
+  return <InputShell icon={icon}><input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className={tw("w-full rounded-2xl bg-transparent px-4 py-3.5 text-sm font-semibold text-[#0d2c54] outline-none placeholder:font-medium placeholder:text-slate-300", icon ? "pl-11" : "")} /></InputShell>;
+}
 
-  const scannerInputRef = useRef<HTMLInputElement | null>(null);
-  const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? "";
+function TextArea({ value, onChange, placeholder, rows = 4 }: { value: string; onChange: (value: string) => void; placeholder: string; rows?: number }) {
+  return <InputShell><textarea rows={rows} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="w-full resize-none rounded-2xl bg-transparent px-4 py-3.5 text-sm font-semibold text-[#0d2c54] outline-none placeholder:font-medium placeholder:text-slate-300" /></InputShell>;
+}
 
-  const stats = useMemo(() => calculateStats(parcels), [parcels]);
-  const selectedBranch = useMemo(
-    () => branches.find((branch) => branch.id === selectedBranchId) ?? branches[0],
-    [branches, selectedBranchId],
-  );
-  const plans = useMemo(() => buildLifoPlans(parcels, branches, slots), [parcels, branches, slots]);
-
-  const filteredParcels = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    const stageFiltered = parcels.filter((parcel) => {
-      if (activeStage === "RECEIVING") return ["INBOUND_PENDING", "RECEIVED"].includes(parcel.status);
-      if (activeStage === "STAGING") return ["RECEIVED", "STAGED"].includes(parcel.status);
-      if (activeStage === "STORAGE") return ["STAGED", "STORED"].includes(parcel.status);
-      if (activeStage === "SHIPPING") return ["STORED", "DISPATCH_READY", "DISPATCHED"].includes(parcel.status);
-      return parcel.status === "EXCEPTION";
-    });
-
-    if (!q) return stageFiltered;
-    return stageFiltered.filter((parcel) => {
-      return [
-        parcel.trackingNo,
-        parcel.destinationTownship,
-        parcel.routeCode,
-        parcel.manifestNo ?? "",
-        parcel.cageCode ?? "",
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(q);
-    });
-  }, [activeStage, parcels, search]);
-
-  const stageAction = useMemo<SignatureAction>(() => {
-    if (activeStage === "RECEIVING") return "RECEIVE";
-    if (activeStage === "STAGING") return "STAGE";
-    if (activeStage === "STORAGE") return "STORE";
-    if (activeStage === "SHIPPING") return "DISPATCH";
-    return "EXCEPTION_ACK";
-  }, [activeStage]);
-
-  const topPlans = useMemo(() => plans.slice(0, 3), [plans]);
-
-  useEffect(() => {
-    scannerInputRef.current?.focus();
-  }, [activeStage]);
-
-  useEffect(() => {
-    let ignore = false;
-
-    async function bootstrap() {
-      setLoadingRemote(true);
-      try {
-        const [remoteStats, remoteParcels, remoteBranches] = await Promise.allSettled([
-          fetchJson<ApiEnvelope<WarehouseStats> | WarehouseStats>("/api/v1/warehouse/stats"),
-          fetchJson<ApiEnvelope<Parcel[]> | Parcel[]>("/api/v1/warehouse/parcels"),
-          fetchJson<ApiEnvelope<BranchOffice[]> | BranchOffice[]>("/api/v1/warehouse/branches"),
-        ]);
-
-        if (ignore) return;
-
-        if (remoteParcels.status === "fulfilled") {
-          const incoming = Array.isArray(remoteParcels.value)
-            ? remoteParcels.value
-            : (remoteParcels.value as ApiEnvelope<Parcel[]>).data;
-          if (incoming?.length) setParcels(incoming);
-        }
-
-        if (remoteBranches.status === "fulfilled") {
-          const incoming = Array.isArray(remoteBranches.value)
-            ? remoteBranches.value
-            : (remoteBranches.value as ApiEnvelope<BranchOffice[]>).data;
-          if (incoming?.length) {
-            setBranches(incoming);
-            setSelectedBranchId((prev) => incoming.find((b) => b.id === prev)?.id ?? incoming[0].id);
-          }
-        }
-
-        if (remoteStats.status === "fulfilled") {
-          const incoming = "inboundPending" in (remoteStats.value as WarehouseStats)
-            ? (remoteStats.value as WarehouseStats)
-            : (remoteStats.value as ApiEnvelope<WarehouseStats>).data;
-          if (incoming) {
-            // stats are derived locally when demo mode is used; remote stats are intentionally not set into state
-          }
-        }
-      } catch {
-        // Demo fallback stays in place.
-      } finally {
-        if (!ignore) setLoadingRemote(false);
-      }
-    }
-
-    bootstrap();
-    return () => {
-      ignore = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!toast) return;
-    const id = window.setTimeout(() => setToast(null), 2500);
-    return () => window.clearTimeout(id);
-  }, [toast]);
-
-  useEffect(() => {
-    if (!cameraScanEnabled) return;
-    if (!("BarcodeDetector" in window)) {
-      setToast({ tone: "warn", message: "Camera QR scan is not supported in this browser. Use scanner input instead." });
-      setCameraScanEnabled(false);
-      return;
-    }
-  }, [cameraScanEnabled]);
-
-  const refreshDemo = useCallback(() => {
-    setParcels((prev) => [...prev]);
-    setSlots((prev) => [...prev]);
-    setToast({ tone: "ok", message: "Warehouse workspace refreshed." });
-  }, []);
-
-  const openSignature = useCallback((trackingNo: string, action: SignatureAction) => {
-    setSignatureDataUrl(null);
-    setSignerName("");
-    setSignerRole("");
-    setExceptionReason("");
-    setSignatureModal({ open: true, trackingNo, action });
-  }, []);
-
-  const updateParcelLocal = useCallback(
-    (trackingNo: string, action: SignatureAction, opts?: { exceptionReason?: string }) => {
-      setParcels((prev) =>
-        prev.map((parcel) => {
-          if (parcel.trackingNo !== trackingNo) return parcel;
-          const nextStatus = getNextStatus(action);
-          const chosenSlot = action === "STORE" ? getBestStorageSlot(slots, parcel) : parcel.cageCode;
-          return {
-            ...parcel,
-            status: nextStatus,
-            receivedAt: action === "RECEIVE" ? new Date().toISOString() : parcel.receivedAt,
-            stagedAt: action === "STAGE" ? new Date().toISOString() : parcel.stagedAt,
-            storedAt: action === "STORE" ? new Date().toISOString() : parcel.storedAt,
-            dispatchReadyAt: action === "DISPATCH" ? new Date().toISOString() : parcel.dispatchReadyAt,
-            cageCode: action === "STORE" ? chosenSlot : parcel.cageCode,
-            exceptionReason: opts?.exceptionReason ?? parcel.exceptionReason,
-          };
-        }),
-      );
-    },
-    [slots],
-  );
-
-  const processStageScan = useCallback(
-    async (trackingNo: string) => {
-      const normalized = trackingNo.trim().toUpperCase();
-      if (!normalized) return;
-      const parcel = parcels.find((item) => item.trackingNo.toUpperCase() === normalized || item.qrValue.toUpperCase() === normalized);
-      if (!parcel) {
-        setLastScan({ trackingNo: normalized, status: "ERROR", message: "Parcel not found in warehouse registry." });
-        setToast({ tone: "err", message: `Parcel ${normalized} not found.` });
-        return;
-      }
-      openSignature(parcel.trackingNo, stageAction);
-    },
-    [openSignature, parcels, stageAction],
-  );
-
-  const submitSignature = useCallback(async () => {
-    if (!signatureModal.trackingNo || !signerName.trim() || !signerRole.trim() || !signatureDataUrl) {
-      setToast({ tone: "err", message: "Signer name, role, and electronic signature are required." });
-      return;
-    }
-
-    const payload: SignaturePayload = {
-      trackingNo: signatureModal.trackingNo,
-      action: signatureModal.action,
-      signerName: signerName.trim(),
-      signerRole: signerRole.trim(),
-      signatureDataUrl,
-      signedAt: new Date().toISOString(),
-    };
-
-    setProcessing(true);
-    try {
-      try {
-        await fetchJson("/api/v1/warehouse/scan-events", {
-          method: "POST",
-          body: JSON.stringify({
-            trackingNo: payload.trackingNo,
-            action: payload.action,
-            branchId: selectedBranch.id,
-            signerName: payload.signerName,
-            signerRole: payload.signerRole,
-            signatureDataUrl: payload.signatureDataUrl,
-            exceptionReason: signatureModal.action === "EXCEPTION_ACK" ? exceptionReason.trim() || undefined : undefined,
-          }),
-        });
-      } catch {
-        // local fallback keeps preview usable
-      }
-
-      updateParcelLocal(payload.trackingNo, payload.action, {
-        exceptionReason: signatureModal.action === "EXCEPTION_ACK" ? exceptionReason.trim() : undefined,
-      });
-
-      setAuditRows((prev) => [
-        {
-          id: crypto.randomUUID(),
-          trackingNo: payload.trackingNo,
-          action: payload.action,
-          stage: getStageFromAction(payload.action),
-          operatorName: payload.signerName,
-          scannedAt: payload.signedAt,
-          branchName: selectedBranch.name,
-          status: "SUCCESS",
-          remarks: signatureModal.action === "EXCEPTION_ACK" ? exceptionReason.trim() : undefined,
-        },
-        ...prev,
-      ]);
-
-      setLastScan({
-        trackingNo: payload.trackingNo,
-        status: "SUCCESS",
-        message: `${payload.trackingNo} processed for ${payload.action.toLowerCase()}.`,
-      });
-      setToast({ tone: "ok", message: `${payload.trackingNo} moved to ${getNextStatus(payload.action)}.` });
-      setSignatureModal({ open: false, trackingNo: "", action: "RECEIVE" });
-      setScannerInput("");
-      scannerInputRef.current?.focus();
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Unable to save scan event.";
-      setLastScan({ trackingNo: payload.trackingNo, status: "ERROR", message });
-      setToast({ tone: "err", message });
-    } finally {
-      setProcessing(false);
-    }
-  }, [
-    exceptionReason,
-    selectedBranch.id,
-    selectedBranch.name,
-    signatureDataUrl,
-    signatureModal.action,
-    signatureModal.trackingNo,
-    signerName,
-    signerRole,
-    updateParcelLocal,
-  ]);
-
-  const updateBranchStartPoint = useCallback((branchId: string, lat: number, lng: number) => {
-    setBranches((prev) =>
-      prev.map((branch) =>
-        branch.id === branchId
-          ? {
-              ...branch,
-              startPoint: {
-                ...branch.startPoint,
-                lat,
-                lng,
-              },
-            }
-          : branch,
-      ),
-    );
-  }, []);
-
-  const stageTitle = useMemo(() => {
-    const map: Record<WorkflowStage, string> = {
-      RECEIVING: "Inbound Receiving & QR Verification",
-      STAGING: "Staging Control & Area Assignment",
-      STORAGE: "Storage Placement & LIFO Slotting",
-      SHIPPING: "Shipping Release & Dispatch Handover",
-      EXCEPTION: "Exception Desk & Damage / Misroute Handling",
-    };
-    return map[activeStage];
-  }, [activeStage]);
-
+function SelectInput({ value, onChange, options }: { value: string; onChange: (value: string) => void; options: Array<{ value: string; label: string }> }) {
   return (
-    <div className="min-h-screen bg-[#f7f9fc] p-8">
-      <div className="space-y-2">
-        <p className="text-xs font-bold uppercase tracking-[0.3em] text-slate-400">Logistics Operations</p>
-        <h1 className="text-4xl font-black uppercase tracking-tight text-[#0d2c54]">
-          Warehouse Hub <span className="font-normal text-blue-500">/ ဂိုဒေါင်စီမံခန့်ခွဲမှု</span>
-        </h1>
-        <p className="text-slate-500">
-          Production workflow for receiving, staging, storage, shipping, QR scan verification, electronic signature capture,
-          and LIFO-based rider / driver storage planning.
-        </p>
+    <InputShell>
+      <ChevronRight size={16} className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 rotate-90 text-slate-400" />
+      <select value={value} onChange={(e) => onChange(e.target.value)} className="w-full appearance-none rounded-2xl bg-transparent px-4 py-3.5 pr-10 text-sm font-semibold text-[#0d2c54] outline-none">
+        {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
+    </InputShell>
+  );
+}
+
+function Label({ label, mode }: { label: Bi; mode: LanguageMode }) {
+  return <BiText mode={mode} text={label} className="mb-2 text-[11px] font-black uppercase tracking-[0.18em] text-slate-500" secondaryClassName="mb-2 text-xs font-semibold text-slate-400" />;
+}
+
+function ActionButton({ children, tone = "primary", onClick }: { children: ReactNode; tone?: "primary" | "secondary" | "danger"; onClick?: () => void }) {
+  return (
+    <motion.button type="button" onClick={onClick} whileHover={{ y: -1, scale: 1.01 }} whileTap={{ scale: 0.985 }} transition={{ type: "spring", stiffness: 420, damping: 28 }} className={tw("inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-xs font-black uppercase tracking-[0.16em] outline-none", tone === "primary" && "bg-[#0d2c54] text-white shadow-[0_18px_36px_rgba(13,44,84,0.2)]", tone === "secondary" && "border border-slate-200 bg-white text-slate-700 shadow-[0_12px_24px_rgba(15,23,42,0.05)]", tone === "danger" && "bg-rose-600 text-white shadow-[0_18px_36px_rgba(225,29,72,0.18)]")}>
+      {children}
+    </motion.button>
+  );
+}
+
+function StatusBadge({ text, tone = "blue", mode }: { text: Bi; tone?: Tone; mode: LanguageMode }) {
+  const palette = {
+    blue: "bg-sky-50 text-sky-700 border-sky-100 before:bg-sky-500",
+    amber: "bg-amber-50 text-amber-700 border-amber-100 before:bg-amber-500",
+    green: "bg-emerald-50 text-emerald-700 border-emerald-100 before:bg-emerald-500",
+    rose: "bg-rose-50 text-rose-700 border-rose-100 before:bg-rose-500",
+    violet: "bg-violet-50 text-violet-700 border-violet-100 before:bg-violet-500",
+    slate: "bg-slate-50 text-slate-700 border-slate-200 before:bg-slate-500",
+  }[tone];
+  return (
+    <span className={tw("inline-flex items-center gap-2 rounded-full border px-3 py-1.5 before:h-2 before:w-2 before:rounded-full before:content-['']", palette)}>
+      <span className="text-xs font-black uppercase tracking-[0.16em]">{text.en}</span>
+      {mode !== "en" ? <span className="text-xs font-semibold">{text.my}</span> : null}
+    </span>
+  );
+}
+
+function MetricCard({ label, value, icon, mode }: { label: Bi; value: string; icon: ReactNode; mode: LanguageMode }) {
+  return (
+    <SurfaceCard className="relative overflow-hidden p-5">
+      <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-[#0d2c54]/[0.04] blur-2xl" />
+      <div className="relative z-10 flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-[#0d2c54] shadow-inner">{icon}</div>
+      <BiText mode={mode} text={label} className="mt-5 text-[11px] font-black uppercase tracking-[0.18em] text-slate-500" secondaryClassName="mt-1 text-xs font-semibold text-slate-400" />
+      <div className="mt-3 text-3xl font-black tracking-tight text-[#0d2c54]">{value}</div>
+    </SurfaceCard>
+  );
+}
+
+function AsyncStateView({ state, mode }: { state: AsyncState; mode: LanguageMode }) {
+  if (state === "ready") return null;
+  if (state === "loading") {
+    return <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex min-h-[320px] flex-col items-center justify-center gap-4 rounded-[28px] border border-dashed border-slate-200 bg-white/60"><Loader2 className="animate-spin text-[#0d2c54]" size={28} /><BiText mode={mode} text={BI("Loading warehouse workspace...", "warehouse workspace ကို တင်နေသည်...")} align="center" className="text-base font-black text-[#0d2c54]" secondaryClassName="mt-1 text-sm font-semibold text-slate-500" /></motion.div>;
+  }
+  if (state === "empty") {
+    return <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex min-h-[320px] flex-col items-center justify-center gap-4 rounded-[28px] border border-dashed border-slate-200 bg-white/60 px-8"><Inbox size={28} className="text-slate-400" /><BiText mode={mode} text={BI("No warehouse records available here", "ဤနေရာတွင် warehouse မှတ်တမ်းမရှိသေးပါ")} align="center" className="text-lg font-black text-[#0d2c54]" secondaryClassName="mt-2 text-sm font-semibold text-slate-500" /></motion.div>;
+  }
+  return <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex min-h-[320px] flex-col items-center justify-center gap-4 rounded-[28px] border border-rose-200 bg-rose-50/70 px-8"><XCircle size={28} className="text-rose-500" /><BiText mode={mode} text={BI("Unable to load this warehouse section", "ဤ warehouse အပိုင်းကို မတင်နိုင်ပါ")} align="center" className="text-lg font-black text-rose-700" secondaryClassName="mt-2 text-sm font-semibold text-rose-600" /></motion.div>;
+}
+
+function ReadTile({ label, value, mode }: { label: Bi; value: string; mode: LanguageMode }) {
+  return <div className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm"><BiText mode={mode} text={label} className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400" secondaryClassName="mt-1 text-xs font-semibold text-slate-400" /><div className="mt-3 text-base font-black text-[#0d2c54]">{value}</div></div>;
+}
+
+export default function WarehouseHubOperationsPortalPremium() {
+  const [mode, setMode] = useState<LanguageMode>("both");
+  const [tab, setTab] = useState<TabKey>("dashboard");
+  const [screenState, setScreenState] = useState<Record<TabKey, AsyncState>>({
+    dashboard: "ready",
+    intake: "ready",
+    sorting: "ready",
+    transfers: "ready",
+    inventory: "ready",
+    staging: "ready",
+    exceptions: "ready",
+    returns: "ready",
+    handover: "ready",
+    scanqc: "ready",
+    workforce: "ready",
+    reports: "ready",
+    notifications: "ready",
+    profile: "ready",
+  });
+  const [selectedParcelId, setSelectedParcelId] = useState<string>(parcels[0].id);
+  const [scanValue, setScanValue] = useState("BEX-W-51001");
+  const [intakeNote, setIntakeNote] = useState("");
+  const [exceptionNote, setExceptionNote] = useState("");
+  const [releaseSuccess, setReleaseSuccess] = useState(false);
+
+  const activeState = screenState[tab];
+  const selectedParcel = useMemo(() => parcels.find((p) => p.id === selectedParcelId) ?? parcels[0], [selectedParcelId]);
+  const scannedParcel = useMemo(() => parcels.find((p) => p.trackingNo.toLowerCase() === scanValue.toLowerCase()) ?? null, [scanValue]);
+
+  const metrics = useMemo(() => {
+    const received = parcels.filter((p) => p.currentStatus === "Received" || p.currentStatus === "Scanned").length;
+    const sorted = parcels.filter((p) => p.currentStatus === "Sorted").length;
+    const staged = parcels.filter((p) => p.currentStatus === "Staged").length;
+    const transferred = parcels.filter((p) => p.currentStatus === "Transferred").length;
+    const exceptionsCount = parcels.filter((p) => p.currentStatus === "Exception").length;
+    const codValue = parcels.reduce((sum, p) => sum + p.codAmount, 0);
+    return { received, sorted, staged, transferred, exceptionsCount, codValue };
+  }, []);
+
+  const dashboardView = (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+        <MetricCard mode={mode} label={BI("Inbound Received", "ဝင်လာသောကုန်လက်ခံပြီး") } value={String(metrics.received)} icon={<Package2 size={18} />} />
+        <MetricCard mode={mode} label={BI("Sorted Parcels", "ခွဲပြီး parcel များ") } value={String(metrics.sorted)} icon={<Boxes size={18} />} />
+        <MetricCard mode={mode} label={BI("Staged for Dispatch", "dispatch staging ပြီး") } value={String(metrics.staged)} icon={<Truck size={18} />} />
+        <MetricCard mode={mode} label={BI("Transfers In Motion", "လွှဲပြောင်းမှုလုပ်ဆောင်နေ") } value={String(transfers.filter((t) => t.status.en !== "Received").length)} icon={<ArrowRightLeft size={18} />} />
+        <MetricCard mode={mode} label={BI("Exception Queue", "exception ဇယား") } value={String(metrics.exceptionsCount)} icon={<AlertTriangle size={18} />} />
+        <MetricCard mode={mode} label={BI("COD Value in Hub", "hub အတွင်း COD တန်ဖိုး") } value={`${metrics.codValue.toLocaleString()} Ks`} icon={<FileText size={18} />} />
       </div>
 
-      {toast ? (
-        <div
-          className={`mt-6 rounded-2xl border px-4 py-3 text-sm font-semibold ${
-            toast.tone === "ok"
-              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-              : toast.tone === "warn"
-                ? "border-amber-200 bg-amber-50 text-amber-700"
-                : "border-rose-200 bg-rose-50 text-rose-700"
-          }`}
-        >
-          {toast.message}
-        </div>
-      ) : null}
-
-      <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard icon={ArrowDownToLine} title="Inbound Pending" value={String(stats.inboundPending)} />
-        <StatCard icon={Warehouse} title="In Warehouse (Sorted)" value={String(stats.inWarehouseSorted)} accent="blue" />
-        <StatCard icon={Truck} title="Dispatch Ready" value={String(stats.dispatchReady)} accent="green" />
-        <StatCard icon={AlertTriangle} title="Exceptions" value={String(stats.exceptions)} accent="red" />
-      </div>
-
-      <div className="mt-8 grid gap-4 xl:grid-cols-[0.85fr_1.15fr]">
-        <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-black text-[#0d2c54]">Warehouse Workflow / ဂိုဒေါင်လုပ်ငန်းစဉ်</h2>
-          <div className="mt-4 grid gap-3">
-            <StageButton icon={ArrowDownToLine} title="Receiving" subtitle="ဝင်ကုန်လက်ခံခြင်း" active={activeStage === "RECEIVING"} onClick={() => setActiveStage("RECEIVING")} />
-            <StageButton icon={Workflow} title="Staging" subtitle="စီစဉ်ချထားခြင်း" active={activeStage === "STAGING"} onClick={() => setActiveStage("STAGING")} />
-            <StageButton icon={Boxes} title="Storage" subtitle="သိုလှောင်ခြင်း" active={activeStage === "STORAGE"} onClick={() => setActiveStage("STORAGE")} />
-            <StageButton icon={ArrowUpToLine} title="Shipping" subtitle="ထွက်ကုန်ပို့ဆောင်ခြင်း" active={activeStage === "SHIPPING"} onClick={() => setActiveStage("SHIPPING")} />
-            <StageButton icon={AlertTriangle} title="Exceptions" subtitle="ပြဿနာဖြေရှင်းခြင်း" active={activeStage === "EXCEPTION"} onClick={() => setActiveStage("EXCEPTION")} />
-          </div>
-
-          <div className="mt-6 rounded-2xl bg-slate-50 p-4">
-            <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Operating Branch</label>
-            <select
-              value={selectedBranchId}
-              onChange={(e) => setSelectedBranchId(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-[#0d2c54] outline-none"
-            >
-              {branches.map((branch) => (
-                <option key={branch.id} value={branch.id}>
-                  {branch.name} ({branch.code})
-                </option>
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
+        <div className="space-y-6 xl:col-span-8">
+          <SurfaceCard>
+            <SectionTitle mode={mode} icon={<Sparkles size={18} />} title={BI("Quick Warehouse Actions", "warehouse အမြန်လုပ်ဆောင်မှုများ") } subtitle={BI("Fast shortcuts for scan intake, sorting, staging, transfers, QC, and rider handover.", "scan intake၊ sorting၊ staging၊ transfer၊ QC နှင့် rider handover အတွက်အမြန်လုပ်ဆောင်နိုင်သော shortcut များ။")} />
+            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+              {[
+                ["Inbound Intake", "ဝင်လာသောကုန်လက်ခံမှု", <Package2 size={18} />, "intake"],
+                ["Sorting Lane", "ခွဲခြားသတ်မှတ်မှု", <Boxes size={18} />, "sorting"],
+                ["Dispatch Staging", "dispatch staging", <Truck size={18} />, "staging"],
+                ["Hub Transfers", "hub လွှဲပြောင်းမှု", <ArrowRightLeft size={18} />, "transfers"],
+                ["Scan & QC", "scan နှင့် QC", <ScanLine size={18} />, "scanqc"],
+                ["Rider Handover", "rider လွှဲပြောင်းမှု", <Handshake size={18} />, "handover"],
+                ["Exceptions", "exception များ", <AlertTriangle size={18} />, "exceptions"],
+                ["Reports", "အစီရင်ခံစာများ", <FileSpreadsheet size={18} />, "reports"],
+              ].map(([en, my, icon, next]) => (
+                <motion.button key={String(en)} whileHover={{ y: -2 }} whileTap={{ scale: 0.985 }} type="button" onClick={() => setTab(next as TabKey)} className="rounded-[24px] border border-slate-200 bg-white p-5 text-left shadow-[0_12px_28px_rgba(15,23,42,0.05)] transition hover:border-slate-300">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-[#0d2c54] shadow-inner">{icon}</div>
+                  <div className="mt-4 text-sm font-black text-[#0d2c54]">{en}</div>
+                  <div className="mt-1 text-sm font-semibold text-slate-500">{my}</div>
+                </motion.button>
               ))}
-            </select>
-            <p className="mt-2 text-xs text-slate-500">
-              Start point: {selectedBranch.startPoint.label} ({selectedBranch.startPoint.lat.toFixed(6)}, {selectedBranch.startPoint.lng.toFixed(6)})
-            </p>
-          </div>
-        </div>
-
-        <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div>
-              <h2 className="text-lg font-black text-[#0d2c54]">{stageTitle}</h2>
-              <p className="mt-1 text-sm text-slate-500">
-                Scan QR or barcode, capture electronic signature, and move parcels through the selected workflow stage.
-              </p>
             </div>
-            <button
-              type="button"
-              onClick={refreshDemo}
-              className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-4 py-3 text-xs font-black uppercase tracking-wider text-slate-600 hover:bg-slate-50"
-            >
-              <RefreshCw size={14} /> Refresh
-            </button>
-          </div>
+          </SurfaceCard>
 
-          <div className="mt-6 grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-              <div className="mb-3 flex items-center gap-2 text-sm font-black text-[#0d2c54]">
-                <QrCode size={18} /> Scan Input / QR စကင်န်
-              </div>
-              <form
-                onSubmit={async (e) => {
-                  e.preventDefault();
-                  if (!scannerInput.trim() || processing) return;
-                  await processStageScan(scannerInput.trim());
-                }}
-                className="space-y-3"
-              >
-                <input
-                  ref={scannerInputRef}
-                  type="text"
-                  value={scannerInput}
-                  onChange={(e) => setScannerInput(e.target.value)}
-                  placeholder="SCAN QR / BARCODE..."
-                  className="w-full rounded-2xl border-2 border-slate-200 bg-white px-4 py-4 text-center text-xl font-bold tracking-widest text-[#0d2c54] outline-none focus:border-blue-500"
-                  disabled={processing}
-                />
-                <div className="flex flex-wrap gap-3">
-                  <button
-                    type="submit"
-                    disabled={processing}
-                    className="inline-flex items-center gap-2 rounded-2xl bg-[#0d2c54] px-5 py-3 text-sm font-black uppercase tracking-wider text-white disabled:opacity-50"
-                  >
-                    <ScanLine size={16} /> Process Scan
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCameraScanEnabled((prev) => !prev)}
-                    className="rounded-2xl border border-slate-200 px-5 py-3 text-sm font-black uppercase tracking-wider text-slate-600 hover:bg-white"
-                  >
-                    {cameraScanEnabled ? "Disable Camera" : "Camera Scan"}
-                  </button>
-                </div>
-              </form>
-
-              {cameraScanEnabled ? (
-                <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-500">
-                  Camera QR scan placeholder: wire up <code>BarcodeDetector</code> or native scanning kiosk support on deployment devices.
-                </div>
-              ) : null}
-
-              {lastScan ? (
-                <div className={`mt-4 rounded-2xl border px-4 py-3 text-sm font-bold ${lastScan.status === "SUCCESS" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700"}`}>
-                  {lastScan.status === "SUCCESS" ? "✅" : "❌"} {lastScan.message}
-                </div>
-              ) : null}
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-              <div className="mb-3 flex items-center gap-2 text-sm font-black text-[#0d2c54]">
-                <ClipboardCheck size={18} /> Required Controls
-              </div>
-              <div className="space-y-3 text-sm text-slate-600">
-                <ChecklistRow label="QR / barcode verification" done />
-                <ChecklistRow label="Electronic signature capture" done />
-                <ChecklistRow label="Operator acknowledgement" done />
-                <ChecklistRow label="Branch origin enforcement" done />
-                <ChecklistRow label="LIFO load plan generation" done />
-                <ChecklistRow label="Audit trail event write" done />
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-8 grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
-        <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <h2 className="text-lg font-black text-[#0d2c54]">Parcel Queue / လက်ရှိကုန်စည်စာရင်း</h2>
-              <p className="mt-1 text-sm text-slate-500">Search and verify the current queue for the selected workflow stage.</p>
-            </div>
-            <div className="relative w-full lg:max-w-md">
-              <PackageSearch size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search tracking / township / route / manifest"
-                className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-11 pr-4 text-sm outline-none focus:border-[#0d2c54] focus:bg-white"
-              />
-            </div>
-          </div>
-
-          <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
-            <table className="min-w-full text-sm">
-              <thead className="bg-slate-50 text-left text-slate-500">
-                <tr>
-                  <th className="px-4 py-3 font-black">Tracking</th>
-                  <th className="px-4 py-3 font-black">Route</th>
-                  <th className="px-4 py-3 font-black">Township</th>
-                  <th className="px-4 py-3 font-black">Way Stop</th>
-                  <th className="px-4 py-3 font-black">Slot</th>
-                  <th className="px-4 py-3 font-black">Status</th>
-                  <th className="px-4 py-3 font-black">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredParcels.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="px-4 py-10 text-center text-slate-400">
-                      No parcels found for the selected stage.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredParcels.map((parcel) => (
-                    <tr key={parcel.id} className="border-t border-slate-100">
-                      <td className="px-4 py-3 font-bold text-[#0d2c54]">{parcel.trackingNo}</td>
-                      <td className="px-4 py-3">{parcel.routeCode}</td>
-                      <td className="px-4 py-3">{parcel.destinationTownship}</td>
-                      <td className="px-4 py-3">Stop {parcel.wayPlanStopOrder}</td>
-                      <td className="px-4 py-3">{parcel.cageCode ?? "Pending"}</td>
-                      <td className="px-4 py-3">
-                        <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase ${badgeClass(parcel.status)}`}>
-                          {parcel.status.replaceAll("_", " ")}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <button
-                          type="button"
-                          onClick={() => openSignature(parcel.trackingNo, stageAction)}
-                          className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-black uppercase tracking-wider text-[#0d2c54] hover:bg-slate-50"
-                        >
-                          Advance
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="flex items-center gap-3">
-              <Route size={20} className="text-[#0d2c54]" />
-              <h2 className="text-lg font-black text-[#0d2c54]">LIFO Load Plans / LIFO တင်သွင်းအစီအစဉ်</h2>
-            </div>
-            <p className="mt-1 text-sm text-slate-500">
-              Plans are grouped by rider or driver. Unload order follows way plan; load order is reversed for LIFO.
-            </p>
-
-            <div className="mt-4 space-y-3">
-              {topPlans.length === 0 ? (
-                <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">No eligible plans yet.</div>
-              ) : (
-                topPlans.map((plan) => (
-                  <div key={plan.assigneeId} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <div className="font-black text-[#0d2c54]">{plan.assigneeName}</div>
-                        <div className="text-xs text-slate-500">
-                          {plan.mode} • Start: {plan.startPointLabel}
-                        </div>
+          <SurfaceCard>
+            <SectionTitle mode={mode} icon={<Activity size={18} />} title={BI("Operational Flow Summary", "လုပ်ငန်းစဉ်အနှစ်ချုပ်") } subtitle={BI("Live parcel visibility from intake through sorting, staging, transfer, and exception handling.", "intake မှ sorting၊ staging၊ transfer နှင့် exception handling အထိ parcel အခြေအနေကိုတိုက်ရိုက်မြင်နိုင်သည်။")} />
+            <div className="space-y-4">
+              {parcels.map((parcel) => (
+                <div key={parcel.id} className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <div className="text-base font-black text-[#0d2c54]">{parcel.trackingNo}</div>
+                        <StatusBadge mode={mode} text={BI(parcel.currentStatus, parcel.currentStatus)} tone={statusTone(parcel.currentStatus)} />
                       </div>
-                      <span className="rounded-full bg-[#0d2c54] px-3 py-1 text-[10px] font-black uppercase text-white">
-                        {plan.parcelCount} parcels
-                      </span>
+                      <div className="mt-3 text-sm font-semibold text-slate-600">{parcel.merchant} • {parcel.destination}</div>
+                      <div className="mt-2 text-sm font-medium text-slate-500">Bin {parcel.currentBin} • Next: {parcel.nextAction}</div>
                     </div>
-                    <div className="mt-3 space-y-2">
-                      {plan.parcels.slice(0, 4).map((item) => (
-                        <div key={item.trackingNo} className="grid grid-cols-[1fr_auto_auto] items-center gap-3 rounded-xl bg-white px-3 py-2 text-sm">
-                          <div>
-                            <div className="font-bold text-[#0d2c54]">{item.trackingNo}</div>
-                            <div className="text-xs text-slate-500">{item.destinationTownship} • {item.routeCode}</div>
-                          </div>
-                          <div className="text-xs font-bold text-amber-600">LOAD #{item.loadSequence}</div>
-                          <div className="text-xs font-bold text-emerald-600">UNLOAD #{item.unloadSequence}</div>
-                        </div>
-                      ))}
-                    </div>
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-[#0d2c54]">{parcel.zone} • {parcel.pieces} pcs</div>
                   </div>
-                ))
-              )}
+                </div>
+              ))}
             </div>
-          </div>
+          </SurfaceCard>
+        </div>
 
-          <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="flex items-center gap-3">
-              <FileStack size={20} className="text-[#0d2c54]" />
-              <h2 className="text-lg font-black text-[#0d2c54]">Recent Audit Trail / မကြာသေးမီ scan history</h2>
+        <div className="space-y-6 xl:col-span-4">
+          <DarkCard>
+            <BiText mode={mode} text={BI("Hub Summary", "hub အနှစ်ချုပ်") } className="text-2xl font-black text-white" secondaryClassName="mt-2 text-sm font-medium leading-6 text-white/60" />
+            <div className="mt-5 space-y-4">
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <div className="text-base font-black text-white">Yangon Central Hub</div>
+                <div className="mt-2 text-sm font-semibold text-white/70">Hub ID HUB-YGN-01 • Morning Shift</div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <div className="text-[11px] font-black uppercase tracking-[0.16em] text-white/45">Dock Status</div>
+                  <div className="mt-2 text-xl font-black text-[#ffd700]">Busy</div>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <div className="text-[11px] font-black uppercase tracking-[0.16em] text-white/45">Sort Lane</div>
+                  <div className="mt-2 text-xl font-black text-white">Lane C</div>
+                </div>
+              </div>
             </div>
-            <div className="mt-4 space-y-3">
-              {auditRows.length === 0 ? (
-                <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">No scan events yet.</div>
-              ) : (
-                auditRows.slice(0, 5).map((row) => (
-                  <div key={row.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="font-bold text-[#0d2c54]">{row.trackingNo}</div>
-                      <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase ${badgeClass(row.status)}`}>
-                        {row.status}
-                      </span>
-                    </div>
-                    <div className="mt-1 text-sm text-slate-500">
-                      {row.action} • {row.operatorName} • {row.branchName}
-                    </div>
-                    <div className="mt-1 text-xs text-slate-400">{formatTime(row.scannedAt)}</div>
-                    {row.remarks ? <div className="mt-2 text-xs text-rose-600">{row.remarks}</div> : null}
+          </DarkCard>
+
+          <SurfaceCard>
+            <SectionTitle mode={mode} icon={<Bell size={18} />} title={BI("Operational Alerts", "လုပ်ငန်းသတိပေးချက်များ") } subtitle={BI("Inbound surges, transfer readiness, and exception escalations grouped for the hub team.", "inbound surge၊ transfer readiness နှင့် exception escalation များကို hub team အတွက်အုပ်စုဖွဲ့ပြသထားသည်။")} />
+            <div className="space-y-3">
+              {notifications.map((item) => (
+                <div key={item.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <StatusBadge mode={mode} text={BI(item.time, item.time)} tone={item.tone} />
+                    {item.unread ? <span className="h-2.5 w-2.5 rounded-full bg-sky-500" /> : null}
                   </div>
-                ))
-              )}
+                  <BiText mode={mode} text={item.title} className="mt-3 text-sm font-black text-[#0d2c54]" secondaryClassName="mt-1 text-sm font-semibold text-slate-500" />
+                </div>
+              ))}
             </div>
-          </div>
+          </SurfaceCard>
         </div>
       </div>
+    </div>
+  );
 
-      <div className="mt-8 rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex items-center gap-3">
-          <MapPinned size={20} className="text-[#0d2c54]" />
-          <h2 className="text-lg font-black text-[#0d2c54]">Start Point Configuration & Plan Map / စတင်မှတ်တိုင်နှင့် map</h2>
+  const intakeView = (
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
+      <div className="space-y-6 xl:col-span-7">
+        <SurfaceCard>
+          <SectionTitle mode={mode} icon={<Package2 size={18} />} title={BI("Inbound Intake Desk", "ဝင်လာသောကုန်လက်ခံရေး") } subtitle={BI("Receive inbound parcels, scan manifests, confirm pieces, and record intake notes at the dock.", "dock တွင် inbound parcel များကိုလက်ခံ၍ manifest scan လုပ်ခြင်း၊ piece count အတည်ပြုခြင်းနှင့် intake note မှတ်တမ်းတင်ခြင်း။")} />
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+            <div><Label mode={mode} label={BI("Scan Tracking / Manifest", "tracking / manifest scan") } /><TextInput value={scanValue} onChange={setScanValue} placeholder={bilingual(mode, BI("Scan or enter tracking number", "tracking number ကို scan လုပ်ပါ သို့မဟုတ် ထည့်ပါ"))} icon={<ScanLine size={15} />} /></div>
+            <div><Label mode={mode} label={BI("Inbound Dock", "ဝင်ကုန် dock") } /><SelectInput value="Dock A" onChange={() => {}} options={[{ value: "Dock A", label: "Dock A" }, { value: "Dock B", label: "Dock B" }]} /></div>
+            <div><Label mode={mode} label={BI("Piece Count", "piece အရေအတွက်") } /><TextInput value={scannedParcel ? String(scannedParcel.pieces) : ""} onChange={() => {}} placeholder="0" type="number" /></div>
+            <div><Label mode={mode} label={BI("Initial Bin", "မူလ bin") } /><TextInput value={scannedParcel?.currentBin ?? ""} onChange={() => {}} placeholder="BIN-A12" /></div>
+            <div className="md:col-span-2"><Label mode={mode} label={BI("Intake Notes", "လက်ခံမှတ်ချက်") } /><TextArea value={intakeNote} onChange={setIntakeNote} placeholder={bilingual(mode, BI("Add seal condition, package remarks, or discrepancy notes", "seal condition၊ package remark သို့မဟုတ် discrepancy note များထည့်ပါ"))} rows={4} /></div>
+          </div>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <ActionButton><ScanLine size={15} /> Confirm Intake</ActionButton>
+            <ActionButton tone="secondary"><ClipboardCheck size={15} /> Save Manifest Check</ActionButton>
+          </div>
+        </SurfaceCard>
+      </div>
+      <div className="space-y-6 xl:col-span-5">
+        <SurfaceCard>
+          <SectionTitle mode={mode} icon={<ClipboardCheck size={18} />} title={BI("Scanned Parcel Detail", "scan ဝင်ထားသော parcel အသေးစိတ်") } subtitle={BI("Immediate parcel detail preview to reduce intake mismatch and manual errors.", "intake mismatch နှင့် manual error များလျော့နည်းစေရန် parcel detail ကိုချက်ချင်းမြင်နိုင်သည်။")} />
+          {scannedParcel ? (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <ReadTile label={BI("Tracking", "tracking") } value={scannedParcel.trackingNo} mode={mode} />
+              <ReadTile label={BI("Merchant", "merchant") } value={scannedParcel.merchant} mode={mode} />
+              <ReadTile label={BI("Destination", "destination") } value={scannedParcel.destination} mode={mode} />
+              <ReadTile label={BI("Current Status", "လက်ရှိအခြေအနေ") } value={scannedParcel.currentStatus} mode={mode} />
+              <ReadTile label={BI("Current Bin", "လက်ရှိ bin") } value={scannedParcel.currentBin} mode={mode} />
+              <ReadTile label={BI("Next Action", "နောက်လုပ်ဆောင်ရန်") } value={scannedParcel.nextAction} mode={mode} />
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 p-6 text-sm font-semibold text-slate-500">{bilingual(mode, BI("No parcel matched this scan input.", "ဤ scan input နှင့်ကိုက်ညီသော parcel မတွေ့ရှိပါ။"))}</div>
+          )}
+        </SurfaceCard>
+      </div>
+    </div>
+  );
+
+  const sortingView = (
+    <div className="space-y-6">
+      <SurfaceCard>
+        <SectionTitle mode={mode} icon={<Boxes size={18} />} title={BI("Sorting Lane Operations", "sorting lane လုပ်ငန်းစဉ်") } subtitle={BI("Sort by zone, route, rider batch, and transfer line with clear bin assignment visibility.", "zone၊ route၊ rider batch နှင့် transfer line အလိုက်ခွဲပြီး bin assignment ကိုရှင်းလင်းစွာပြသထားသည်။")} />
+        <div className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm">
+          <div className="grid grid-cols-8 gap-4 border-b border-slate-200 bg-slate-50 px-4 py-3 text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">
+            <div>Tracking</div><div>Destination</div><div>Zone</div><div>Pieces</div><div>Bin</div><div>Status</div><div>Next Action</div><div>Action</div>
+          </div>
+          {parcels.map((parcel) => (
+            <div key={parcel.id} className="grid grid-cols-8 gap-4 border-b border-slate-100 px-4 py-4 text-sm font-semibold text-[#0d2c54] last:border-b-0">
+              <div>{parcel.trackingNo}</div><div>{parcel.destination}</div><div>{parcel.zone}</div><div>{parcel.pieces}</div><div>{parcel.currentBin}</div><div><StatusBadge mode={mode} text={BI(parcel.currentStatus, parcel.currentStatus)} tone={statusTone(parcel.currentStatus)} /></div><div>{parcel.nextAction}</div><div><button type="button" onClick={() => setSelectedParcelId(parcel.id)} className="font-black text-[#0d2c54] hover:text-sky-600">Assign</button></div>
+            </div>
+          ))}
         </div>
-        <p className="mt-1 text-sm text-slate-500">
-          Head Office uses the fixed HQ coordinate. Branch offices can set or drag their own start point for routing and LIFO plan generation.
-        </p>
+      </SurfaceCard>
+    </div>
+  );
 
-        <div className="mt-5 grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
-          <MapboxStartPointPanel
-            token={mapboxToken}
-            branches={branches}
-            activeBranchId={selectedBranchId}
-            plans={topPlans}
-            onUpdateBranchPoint={updateBranchStartPoint}
-          />
-
+  const transfersView = (
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
+      <div className="space-y-6 xl:col-span-8">
+        <SurfaceCard>
+          <SectionTitle mode={mode} icon={<ArrowRightLeft size={18} />} title={BI("Hub Transfer Management", "hub လွှဲပြောင်းမှုစီမံခန့်ခွဲမှု") } subtitle={BI("Prepare inter-hub batches, loading status, vehicle assignment, transfer release, and ETA visibility.", "inter-hub batch ပြင်ဆင်ခြင်း၊ loading status၊ vehicle assignment၊ transfer release နှင့် ETA ကိုပြသသည်။")} />
           <div className="space-y-4">
-            <div className="rounded-2xl bg-slate-50 p-4">
-              <div className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Selected Branch Start Point</div>
-              <div className="mt-2 text-lg font-black text-[#0d2c54]">{selectedBranch.name}</div>
-              <div className="mt-1 text-sm text-slate-500">{selectedBranch.startPoint.label}</div>
-              <div className="mt-3 grid grid-cols-2 gap-3">
-                <label className="text-xs font-semibold text-slate-500">
-                  Latitude
-                  <input
-                    value={selectedBranch.startPoint.lat}
-                    onChange={(e) => updateBranchStartPoint(selectedBranch.id, Number(e.target.value), selectedBranch.startPoint.lng)}
-                    className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-[#0d2c54] outline-none"
-                  />
-                </label>
-                <label className="text-xs font-semibold text-slate-500">
-                  Longitude
-                  <input
-                    value={selectedBranch.startPoint.lng}
-                    onChange={(e) => updateBranchStartPoint(selectedBranch.id, selectedBranch.startPoint.lat, Number(e.target.value))}
-                    className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-[#0d2c54] outline-none"
-                  />
-                </label>
+            {transfers.map((transfer) => (
+              <div key={transfer.id} className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div>
+                    <div className="text-base font-black text-[#0d2c54]">{transfer.batchNo}</div>
+                    <div className="mt-2 text-sm font-semibold text-slate-600">{transfer.route}</div>
+                    <div className="mt-2 text-sm font-medium text-slate-500">{transfer.vehicle} • {transfer.parcelCount} parcels</div>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <StatusBadge mode={mode} text={transfer.status} tone={statusTone(transfer.status.en)} />
+                    <div className="text-xs font-bold uppercase tracking-[0.14em] text-slate-400">{transfer.departureTime} → {transfer.arrivalEta}</div>
+                  </div>
+                </div>
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <ActionButton tone="secondary"><Forklift size={15} /> Loading Scan</ActionButton>
+                  <ActionButton><Send size={15} /> Release Transfer</ActionButton>
+                </div>
+              </div>
+            ))}
+          </div>
+        </SurfaceCard>
+      </div>
+      <div className="space-y-6 xl:col-span-4">
+        <DarkCard>
+          <BiText mode={mode} text={BI("Transfer Controls", "transfer ထိန်းချုပ်မှု") } className="text-xl font-black text-white" secondaryClassName="mt-2 text-sm font-medium leading-6 text-white/60" />
+          <div className="mt-5 space-y-3 text-sm font-semibold text-white/75">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">Verify parcel count before release / release မလုပ်မီ parcel count စစ်ဆေးပါ</div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">Confirm vehicle assignment / vehicle assignment အတည်ပြုပါ</div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">Complete final linehaul scan / final linehaul scan ပြီးစီးရမည်</div>
+          </div>
+        </DarkCard>
+      </div>
+    </div>
+  );
+
+  const inventoryView = (
+    <div className="space-y-6">
+      <SurfaceCard>
+        <SectionTitle mode={mode} icon={<Warehouse size={18} />} title={BI("Bin & Inventory Visibility", "bin နှင့် inventory မြင်သာမှု") } subtitle={BI("Monitor where parcels are held across intake, sort, QC, staging, hold, and return bins.", "intake၊ sort၊ QC၊ staging၊ hold နှင့် return bin များအတွင်း parcel များတည်နေရာကိုစောင့်ကြည့်နိုင်သည်။")} />
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {[
+            ["BIN-A12", "12 parcels"],
+            ["SORT-C05", "31 parcels"],
+            ["QC-HOLD-02", "6 parcels"],
+            ["STAGE-RIDER-1", "18 parcels"],
+          ].map(([bin, count]) => (
+            <motion.div key={String(bin)} whileHover={{ y: -2 }} className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="text-base font-black text-[#0d2c54]">{bin}</div>
+              <div className="mt-2 text-sm font-semibold text-slate-500">{count}</div>
+            </motion.div>
+          ))}
+        </div>
+      </SurfaceCard>
+    </div>
+  );
+
+  const stagingView = (
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
+      <div className="space-y-6 xl:col-span-8">
+        <SurfaceCard>
+          <SectionTitle mode={mode} icon={<Truck size={18} />} title={BI("Dispatch Staging", "dispatch staging") } subtitle={BI("Prepare rider-ready dispatch lanes with parcel grouping, route readiness, and final release checks.", "rider-ready dispatch lane များကို parcel grouping၊ route readiness နှင့် final release check များဖြင့်ပြင်ဆင်နိုင်သည်။")} />
+          <div className="space-y-4">
+            {parcels.filter((p) => ["Sorted", "Staged"].includes(p.currentStatus)).map((parcel) => (
+              <div key={parcel.id} className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-3"><div className="text-base font-black text-[#0d2c54]">{parcel.trackingNo}</div><StatusBadge mode={mode} text={BI(parcel.currentStatus, parcel.currentStatus)} tone={statusTone(parcel.currentStatus)} /></div>
+                    <div className="mt-2 text-sm font-semibold text-slate-600">{parcel.destination} • {parcel.zone}</div>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-[#0d2c54]">Bin {parcel.currentBin}</div>
+                </div>
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <ActionButton tone="secondary"><MapPinned size={15} /> Assign Staging Lane</ActionButton>
+                  <ActionButton><Send size={15} /> Mark Ready for Handover</ActionButton>
+                </div>
+              </div>
+            ))}
+          </div>
+        </SurfaceCard>
+      </div>
+      <div className="space-y-6 xl:col-span-4">
+        <DarkCard>
+          <BiText mode={mode} text={BI("Staging Checklist", "staging checklist") } className="text-xl font-black text-white" secondaryClassName="mt-2 text-sm font-medium leading-6 text-white/60" />
+          <div className="mt-5 space-y-3 text-sm font-semibold text-white/75">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">Confirm route grouping / route grouping စစ်ဆေးပါ</div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">Perform final scan / final scan ပြုလုပ်ပါ</div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">Release to rider lane / rider lane သို့ထုတ်ပေးပါ</div>
+          </div>
+        </DarkCard>
+      </div>
+    </div>
+  );
+
+  const exceptionsView = (
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
+      <div className="space-y-6 xl:col-span-8">
+        <SurfaceCard>
+          <SectionTitle mode={mode} icon={<AlertTriangle size={18} />} title={BI("Exception Management", "exception စီမံခန့်ခွဲမှု") } subtitle={BI("Damage, mismatch, missing piece, hold, and escalation cases with evidence and action notes.", "damage၊ mismatch၊ missing piece၊ hold နှင့် escalation case များကို evidence နှင့် action note များဖြင့်စီမံနိုင်သည်။")} />
+          <div className="space-y-4">
+            {exceptions.map((item) => (
+              <div key={item.id} className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div>
+                    <div className="text-base font-black text-[#0d2c54]">{item.trackingNo}</div>
+                    <BiText mode={mode} text={item.issue} className="mt-2 text-sm font-black text-[#0d2c54]" secondaryClassName="mt-1 text-sm font-semibold text-slate-500" />
+                    <BiText mode={mode} text={item.note} className="mt-3 text-sm font-medium leading-6 text-slate-600" secondaryClassName="mt-1 text-sm font-medium leading-6 text-slate-500" />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <StatusBadge mode={mode} text={item.status} tone={item.severity} />
+                    <div className="text-xs font-bold uppercase tracking-[0.14em] text-slate-400">{item.updatedAt}</div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </SurfaceCard>
+      </div>
+      <div className="space-y-6 xl:col-span-4">
+        <SurfaceCard>
+          <SectionTitle mode={mode} icon={<Camera size={18} />} title={BI("Exception Note", "exception မှတ်ချက်") } subtitle={BI("Capture extra notes, photo evidence, and review actions for exception handling.", "exception handling အတွက် note၊ photo evidence နှင့် review action များကိုမှတ်တမ်းတင်ပါ။")} />
+          <div className="space-y-4">
+            <div><Label mode={mode} label={BI("Review Note", "review မှတ်ချက်") } /><TextArea value={exceptionNote} onChange={setExceptionNote} placeholder={bilingual(mode, BI("Add exception review note", "exception review note ထည့်ပါ"))} /></div>
+            <motion.button whileHover={{ y: -1 }} whileTap={{ scale: 0.99 }} type="button" className="flex w-full items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50/80 px-4 py-8 text-sm font-bold text-slate-500 transition hover:border-[#0d2c54]/30 hover:bg-white">
+              <Upload size={18} /> {bilingual(mode, BI("Upload damage / exception photo", "damage / exception photo တင်မည်"))}
+            </motion.button>
+            <ActionButton><CheckCircle2 size={15} /> Save Exception Review</ActionButton>
+          </div>
+        </SurfaceCard>
+      </div>
+    </div>
+  );
+
+  const returnsView = (
+    <div className="space-y-6">
+      <SurfaceCard>
+        <SectionTitle mode={mode} icon={<Flag size={18} />} title={BI("Returns / RTS Handling", "return / RTS ကိုင်တွယ်မှု") } subtitle={BI("Manage returned parcels, merchant-return instructions, hold bins, and reverse staging workflows.", "return parcel များ၊ merchant-return instruction၊ hold bin နှင့် reverse staging workflow များကိုစီမံနိုင်သည်။")} />
+        <div className="space-y-4">
+          {parcels.filter((p) => ["Exception", "Returned"].includes(p.currentStatus)).map((parcel) => (
+            <div key={parcel.id} className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                  <div className="text-base font-black text-[#0d2c54]">{parcel.trackingNo}</div>
+                  <div className="mt-2 text-sm font-semibold text-slate-600">{parcel.merchant} • {parcel.destination}</div>
+                </div>
+                <StatusBadge mode={mode} text={BI(parcel.currentStatus, parcel.currentStatus)} tone={statusTone(parcel.currentStatus)} />
+              </div>
+              <div className="mt-4 flex flex-wrap gap-3">
+                <ActionButton tone="secondary"><MapPinned size={15} /> Move to RTS Bin</ActionButton>
+                <ActionButton><Send size={15} /> Prepare Return Transfer</ActionButton>
               </div>
             </div>
+          ))}
+        </div>
+      </SurfaceCard>
+    </div>
+  );
 
-            <div className="rounded-2xl bg-slate-50 p-4">
-              <div className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Storage Plan Rules</div>
-              <ul className="mt-3 space-y-2 text-sm text-slate-600">
-                <li>• Head Office route planning starts from HQ by default.</li>
-                <li>• Branch managers can override their own origin coordinates.</li>
-                <li>• Way plan stop order defines unload sequence.</li>
-                <li>• LIFO reverses loading so earlier stops stay most accessible.</li>
-                <li>• Dispatch-ready parcels prefer OUT lanes and outbound cages.</li>
-              </ul>
+  const handoverView = (
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
+      <div className="space-y-6 xl:col-span-8">
+        <SurfaceCard>
+          <SectionTitle mode={mode} icon={<Handshake size={18} />} title={BI("Rider Handover Desk", "rider လွှဲပြောင်းရေး desk") } subtitle={BI("Release staged parcels to rider batches with final scan confirmation and route-ready checks.", "staged parcel များကို rider batch များသို့ final scan နှင့် route-ready check ဖြင့်ထုတ်ပေးနိုင်သည်။")} />
+          <div className="space-y-4">
+            {parcels.filter((p) => p.currentStatus === "Staged").map((parcel) => (
+              <div key={parcel.id} className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div>
+                    <div className="text-base font-black text-[#0d2c54]">{parcel.trackingNo}</div>
+                    <div className="mt-2 text-sm font-semibold text-slate-600">{parcel.destination} • {parcel.zone}</div>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-[#0d2c54]">{parcel.currentBin}</div>
+                </div>
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <ActionButton tone="secondary"><ScanLine size={15} /> Final Handover Scan</ActionButton>
+                  <ActionButton onClick={() => setReleaseSuccess(true)}><Handshake size={15} /> Release to Rider</ActionButton>
+                </div>
+              </div>
+            ))}
+          </div>
+          <AnimatePresence>
+            {releaseSuccess ? <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4"><BiText mode={mode} text={BI("Rider handover recorded successfully", "rider လွှဲပြောင်းမှုကိုအောင်မြင်စွာမှတ်တမ်းတင်ပြီး") } className="text-sm font-black text-emerald-700" secondaryClassName="mt-1 text-sm font-semibold text-emerald-600" /></motion.div> : null}
+          </AnimatePresence>
+        </SurfaceCard>
+      </div>
+      <div className="space-y-6 xl:col-span-4">
+        <DarkCard>
+          <BiText mode={mode} text={BI("Release Rules", "release စည်းကမ်းများ") } className="text-xl font-black text-white" secondaryClassName="mt-2 text-sm font-medium leading-6 text-white/60" />
+          <div className="mt-5 space-y-3 text-sm font-semibold text-white/75">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">Final scan must pass / final scan အောင်မြင်ရမည်</div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">Route must be assigned / route ချထားပေးပြီးဖြစ်ရမည်</div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">Exception parcels cannot release / exception parcel များကိုထုတ်မပေးနိုင်ပါ</div>
+          </div>
+        </DarkCard>
+      </div>
+    </div>
+  );
+
+  const scanQcView = (
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
+      <div className="space-y-6 xl:col-span-7">
+        <SurfaceCard>
+          <SectionTitle mode={mode} icon={<ScanLine size={18} />} title={BI("Scan & QC Station", "scan နှင့် QC station") } subtitle={BI("Scan parcel IDs, validate labels, verify counts, and flag quality issues before next process steps.", "parcel ID scan လုပ်ခြင်း၊ label စစ်ဆေးခြင်း၊ count အတည်ပြုခြင်းနှင့် quality issue များကိုနောက်အဆင့်မတိုင်မီ flag လုပ်ခြင်း။")} />
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+            <div><Label mode={mode} label={BI("Scan Input", "scan input") } /><TextInput value={scanValue} onChange={setScanValue} placeholder={bilingual(mode, BI("Scan parcel ID", "parcel ID ကို scan လုပ်ပါ"))} icon={<QrCode size={15} />} /></div>
+            <div><Label mode={mode} label={BI("QC Result", "QC ရလဒ်") } /><SelectInput value="pass" onChange={() => {}} options={[{ value: "pass", label: "Pass" }, { value: "hold", label: "Hold" }, { value: "damage", label: "Damage" }]} /></div>
+            <div className="md:col-span-2"><Label mode={mode} label={BI("QC Notes", "QC မှတ်ချက်") } /><TextArea value={exceptionNote} onChange={setExceptionNote} placeholder={bilingual(mode, BI("Add QC findings or mismatch note", "QC finding သို့မဟုတ် mismatch note ထည့်ပါ"))} rows={4} /></div>
+          </div>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <ActionButton><ScanLine size={15} /> Save Scan Result</ActionButton>
+            <ActionButton tone="secondary"><Camera size={15} /> Attach QC Photo</ActionButton>
+          </div>
+        </SurfaceCard>
+      </div>
+      <div className="space-y-6 xl:col-span-5">
+        <SurfaceCard>
+          <SectionTitle mode={mode} icon={<ShieldCheck size={18} />} title={BI("QC Output", "QC output") } subtitle={BI("Immediate result view from scan station to reduce downstream warehouse errors.", "နောက်ပိုင်း warehouse error များလျော့နည်းစေရန် scan station ရလဒ်ကိုချက်ချင်းပြသသည်။")} />
+          {scannedParcel ? <div className="grid grid-cols-1 gap-4 md:grid-cols-2"><ReadTile label={BI("Tracking", "tracking") } value={scannedParcel.trackingNo} mode={mode} /><ReadTile label={BI("Bin", "bin") } value={scannedParcel.currentBin} mode={mode} /><ReadTile label={BI("Status", "အခြေအနေ") } value={scannedParcel.currentStatus} mode={mode} /><ReadTile label={BI("Zone", "ဇုန်") } value={scannedParcel.zone} mode={mode} /></div> : <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 p-6 text-sm font-semibold text-slate-500">{bilingual(mode, BI("No parcel matched this scan input.", "ဤ scan input နှင့်ကိုက်ညီသော parcel မတွေ့ရှိပါ။"))}</div>}
+        </SurfaceCard>
+      </div>
+    </div>
+  );
+
+  const workforceView = (
+    <div className="space-y-6">
+      <SurfaceCard>
+        <SectionTitle mode={mode} icon={<Users size={18} />} title={BI("Workforce & Task Allocation", "လုပ်သားအင်အားနှင့် task ချထားပေးမှု") } subtitle={BI("Track station assignments, workload, completion, and operational balance across the shift.", "station assignment၊ workload၊ completion နှင့် shift အတွင်း operational balance ကိုစောင့်ကြည့်နိုင်သည်။")} />
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {workforce.map((member) => (
+            <motion.div key={member.id} whileHover={{ y: -2 }} className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="text-base font-black text-[#0d2c54]">{member.member}</div>
+              <div className="mt-2 text-sm font-semibold text-slate-500">{member.role} • {member.station}</div>
+              <div className="mt-4 h-2 rounded-full bg-slate-100"><div className="h-2 rounded-full bg-[linear-gradient(90deg,#0d2c54_0%,#2563eb_100%)]" style={{ width: `${member.completion}%` }} /></div>
+              <div className="mt-3 text-sm font-semibold text-slate-600">{member.assignedCount} assigned • {member.completion}% complete</div>
+            </motion.div>
+          ))}
+        </div>
+      </SurfaceCard>
+    </div>
+  );
+
+  const reportsView = (
+    <div className="space-y-6">
+      <SurfaceCard>
+        <SectionTitle mode={mode} icon={<FileSpreadsheet size={18} />} title={BI("Warehouse Reports", "warehouse အစီရင်ခံစာများ") } subtitle={BI("Inbound volume, sort productivity, staging backlog, transfer throughput, exception rate, and labor utilization summary.", "inbound volume၊ sort productivity၊ staging backlog၊ transfer throughput၊ exception rate နှင့် labor utilization summary များကိုပြသသည်။")} />
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
+          <MetricCard mode={mode} label={BI("Inbound Volume", "ဝင်လာသောကုန်ပမာဏ") } value="1,248" icon={<Package2 size={18} />} />
+          <MetricCard mode={mode} label={BI("Sort Productivity", "sorting ထိရောက်မှု") } value="94%" icon={<Boxes size={18} />} />
+          <MetricCard mode={mode} label={BI("Staging Backlog", "staging backlog") } value="26" icon={<Truck size={18} />} />
+          <MetricCard mode={mode} label={BI("Transfer Throughput", "transfer throughput") } value="296" icon={<ArrowRightLeft size={18} />} />
+          <MetricCard mode={mode} label={BI("Exception Rate", "exception နှုန်း") } value="1.8%" icon={<AlertTriangle size={18} />} />
+        </div>
+        <div className="mt-5 flex flex-wrap gap-3">
+          <ActionButton tone="secondary"><FileSpreadsheet size={15} /> CSV</ActionButton>
+          <ActionButton tone="secondary"><FileSpreadsheet size={15} /> XLSX</ActionButton>
+          <ActionButton tone="secondary"><FileText size={15} /> PDF</ActionButton>
+        </div>
+      </SurfaceCard>
+    </div>
+  );
+
+  const notificationsView = (
+    <div className="space-y-6">
+      <SurfaceCard>
+        <SectionTitle mode={mode} icon={<Bell size={18} />} title={BI("Warehouse Notifications", "warehouse အသိပေးချက်များ") } subtitle={BI("Operational alerts, transfer notices, inbound pressure, and exception escalation grouped for hub teams.", "operational alert၊ transfer notice၊ inbound pressure နှင့် exception escalation များကို hub team အတွက်အုပ်စုဖွဲ့ပြသထားသည်။")} />
+        <div className="space-y-4">
+          {notifications.map((item) => (
+            <motion.div key={item.id} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className={tw("rounded-[24px] border bg-white p-5 shadow-sm", item.unread ? "border-sky-200" : "border-slate-200")}>
+              <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                <div>
+                  <BiText mode={mode} text={item.title} className="text-base font-black text-[#0d2c54]" secondaryClassName="mt-1 text-sm font-semibold text-slate-500" />
+                  <BiText mode={mode} text={item.body} className="mt-3 text-sm font-medium leading-6 text-slate-600" secondaryClassName="mt-1 text-sm font-medium leading-6 text-slate-500" />
+                </div>
+                <div className="flex items-center gap-3">
+                  {item.unread ? <span className="h-2.5 w-2.5 rounded-full bg-sky-500" /> : null}
+                  <span className="text-xs font-bold uppercase tracking-[0.14em] text-slate-400">{item.time}</span>
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </SurfaceCard>
+    </div>
+  );
+
+  const profileView = (
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
+      <div className="space-y-6 xl:col-span-4">
+        <SurfaceCard>
+          <SectionTitle mode={mode} icon={<Warehouse size={18} />} title={BI("Hub Profile", "hub ပရိုဖိုင်") } subtitle={BI("Hub identity, operating shift, routing coverage, and basic operational metadata.", "hub identity၊ operating shift၊ routing coverage နှင့် operational metadata များ။")} />
+          <div className="rounded-[28px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-5 shadow-inner">
+            <div className="flex h-16 w-16 items-center justify-center rounded-[22px] border border-slate-200 bg-white text-xl font-black text-[#0d2c54] shadow-sm">YH</div>
+            <div className="mt-4 text-xl font-black text-[#0d2c54]">Yangon Central Hub</div>
+            <div className="mt-2 text-sm font-semibold text-slate-500">Hub ID HUB-YGN-01 • Central Region Ops</div>
+            <div className="mt-5 space-y-3 text-sm font-semibold text-slate-600">
+              <div className="flex items-center gap-3"><CalendarClock size={15} /> Shift: 7:00 AM - 11:00 PM</div>
+              <div className="flex items-center gap-3"><MapPinned size={15} /> Routes: Yangon / Bago / Naypyitaw / Mandalay</div>
+              <div className="flex items-center gap-3"><Wrench size={15} /> Dock Count: 4 • Sort Lanes: 6</div>
             </div>
           </div>
-        </div>
+        </SurfaceCard>
       </div>
-
-      <div className="mt-8 rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex items-center gap-3">
-          <Clock3 size={20} className="text-amber-500" />
-          <h2 className="text-lg font-black text-[#0d2c54]">Implementation Notes / ထုတ်လုပ်အသုံးပြုမှု မှတ်စုများ</h2>
-        </div>
-        <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <InfoCard title="Receiving" body="Every receive event records operator, branch, timestamp, signature, and QR validation." />
-          <InfoCard title="Staging" body="Stage scans move parcels to temporary areas before final cage or vehicle assignment." />
-          <InfoCard title="Storage" body="Storage action recommends a slot and updates cage allocation for searchability and audits." />
-          <InfoCard title="Shipping" body="Dispatch-ready items are grouped into LIFO plans for rider and driver handover." />
-        </div>
+      <div className="space-y-6 xl:col-span-8">
+        <SurfaceCard>
+          <SectionTitle mode={mode} icon={<ShieldCheck size={18} />} title={BI("Hub Settings", "hub setting များ") } subtitle={BI("Notification, language, release rules, and operational preference visibility for the hub workspace.", "hub workspace အတွက် notification၊ language၊ release rule နှင့် operational preference များ။")} />
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <ReadTile label={BI("Primary Language", "အဓိကဘာသာစကား") } value="English + Myanmar" mode={mode} />
+            <ReadTile label={BI("Dispatch Cutoff", "dispatch cutoff") } value="06:00 PM" mode={mode} />
+            <ReadTile label={BI("Hub Status", "hub အခြေအနေ") } value="Operational" mode={mode} />
+            <ReadTile label={BI("Dock Capacity", "dock စွမ်းရည်") } value="High Volume" mode={mode} />
+          </div>
+        </SurfaceCard>
       </div>
+    </div>
+  );
 
-      {signatureModal.open ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-3xl rounded-[28px] bg-white p-6 shadow-2xl">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h3 className="text-xl font-black text-[#0d2c54]">Electronic Signature Required</h3>
-                <p className="mt-1 text-sm text-slate-500">
-                  {signatureModal.trackingNo} • {signatureModal.action}
-                </p>
+  const views: Record<TabKey, ReactNode> = {
+    dashboard: dashboardView,
+    intake: intakeView,
+    sorting: sortingView,
+    transfers: transfersView,
+    inventory: inventoryView,
+    staging: stagingView,
+    exceptions: exceptionsView,
+    returns: returnsView,
+    handover: handoverView,
+    scanqc: scanQcView,
+    workforce: workforceView,
+    reports: reportsView,
+    notifications: notificationsView,
+    profile: profileView,
+  };
+
+  return (
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(13,44,84,0.12),transparent_24%),radial-gradient(circle_at_top_right,rgba(59,130,246,0.08),transparent_20%),linear-gradient(180deg,#f8fbff_0%,#eef4fb_54%,#f8fafc_100%)] px-4 pb-24 pt-6 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-[1800px] space-y-6">
+        <motion.header initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="relative overflow-hidden rounded-[32px] border border-white/70 bg-white/76 p-6 shadow-[0_24px_56px_rgba(15,23,42,0.08)] backdrop-blur-xl md:p-7">
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-sky-300/70 to-transparent" />
+          <div className="absolute -right-10 top-0 h-40 w-40 rounded-full bg-sky-500/10 blur-3xl" />
+          <div className="absolute left-0 top-0 h-32 w-32 rounded-full bg-[#ffd700]/10 blur-3xl" />
+          <div className="relative z-10 flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
+            <div className="max-w-4xl">
+              <div className="inline-flex items-center gap-2 rounded-full border border-slate-200/90 bg-white/90 px-3 py-1.5 shadow-sm">
+                <Sparkles size={14} className="text-[#0d2c54]" />
+                <span className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">Warehouse / Hub Operations</span>
               </div>
-              <button
-                type="button"
-                onClick={() => setSignatureModal({ open: false, trackingNo: "", action: "RECEIVE" })}
-                className="rounded-xl border border-slate-200 p-2 text-slate-500 hover:bg-slate-50"
-              >
-                <XCircle size={18} />
-              </button>
+              <BiText mode={mode} text={BI("Britium Express Warehouse Workspace", "Britium Express warehouse workspace") } className="mt-4 text-3xl font-black tracking-tight text-[#0d2c54] md:text-5xl" secondaryClassName="mt-3 text-base font-semibold text-slate-500 md:text-lg" />
+              <BiText mode={mode} text={BI("A premium hub operations portal for intake, sorting, transfers, staging, exceptions, returns, and rider handover in one place.", "intake၊ sorting၊ transfer၊ staging၊ exception၊ return နှင့် rider handover များကိုတစ်နေရာတည်းတွင်စီမံနိုင်သော premium hub portal ဖြစ်သည်။") } className="mt-4 text-sm font-medium leading-6 text-slate-500 md:text-[15px]" secondaryClassName="mt-1 text-sm font-medium leading-6 text-slate-500 md:text-[15px]" />
             </div>
-
-            <div className="mt-5 grid gap-4 md:grid-cols-2">
-              <label className="text-sm font-semibold text-slate-600">
-                Signer Name
-                <input
-                  value={signerName}
-                  onChange={(e) => setSignerName(e.target.value)}
-                  className="mt-1 h-11 w-full rounded-xl border border-slate-200 px-3 text-sm text-[#0d2c54] outline-none"
-                  placeholder="Operator name"
-                />
-              </label>
-              <label className="text-sm font-semibold text-slate-600">
-                Signer Role
-                <input
-                  value={signerRole}
-                  onChange={(e) => setSignerRole(e.target.value)}
-                  className="mt-1 h-11 w-full rounded-xl border border-slate-200 px-3 text-sm text-[#0d2c54] outline-none"
-                  placeholder="Warehouse supervisor / loader / checker"
-                />
-              </label>
-            </div>
-
-            {signatureModal.action === "EXCEPTION_ACK" ? (
-              <label className="mt-4 block text-sm font-semibold text-slate-600">
-                Exception Reason
-                <textarea
-                  value={exceptionReason}
-                  onChange={(e) => setExceptionReason(e.target.value)}
-                  className="mt-1 min-h-[88px] w-full rounded-xl border border-slate-200 px-3 py-3 text-sm text-[#0d2c54] outline-none"
-                  placeholder="Damage, mismatch, seal issue, or misroute reason"
-                />
-              </label>
-            ) : null}
-
-            <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <div className="mb-2 flex items-center gap-2 text-sm font-black text-[#0d2c54]">
-                <Signature size={16} /> Draw Signature
-              </div>
-              <SignaturePad onChange={setSignatureDataUrl} />
-            </div>
-
-            <div className="mt-5 flex flex-wrap justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setSignatureModal({ open: false, trackingNo: "", action: "RECEIVE" })}
-                className="rounded-xl border border-slate-200 px-5 py-3 text-sm font-black uppercase tracking-wider text-slate-500 hover:bg-slate-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={submitSignature}
-                disabled={processing}
-                className="inline-flex items-center gap-2 rounded-xl bg-[#0d2c54] px-5 py-3 text-sm font-black uppercase tracking-wider text-white disabled:opacity-50"
-              >
-                <ShieldCheck size={16} /> Confirm & Save
-              </button>
+            <div className="grid gap-3 sm:grid-cols-2 xl:w-[560px]">
+              <SurfaceCard className="p-4">
+                <BiText mode={mode} text={BI("Hub Identity", "hub အချက်အလက်") } className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400" secondaryClassName="mt-1 text-xs font-semibold text-slate-400" />
+                <div className="mt-3 text-base font-black text-[#0d2c54]">Yangon Central Hub</div>
+                <div className="mt-1 text-sm font-semibold text-slate-500">HUB-YGN-01 • Morning Shift</div>
+              </SurfaceCard>
+              <SurfaceCard className="p-4">
+                <BiText mode={mode} text={BI("Language Mode", "ဘာသာစကား mode") } className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400" secondaryClassName="mt-1 text-xs font-semibold text-slate-400" />
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {[["en", "EN"], ["my", "မြန်မာ"], ["both", "EN + မြန်မာ"]].map(([value, label]) => (
+                    <ActionButton key={value} tone={mode === value ? "primary" : "secondary"} onClick={() => setMode(value as LanguageMode)}>{label}</ActionButton>
+                  ))}
+                </div>
+              </SurfaceCard>
             </div>
           </div>
-        </div>
-      ) : null}
+          <div className="relative z-10 mt-6 flex flex-wrap gap-3">
+            <ActionButton onClick={() => setTab("intake")}><Package2 size={15} /> Inbound Intake</ActionButton>
+            <ActionButton tone="secondary" onClick={() => setTab("sorting")}><Boxes size={15} /> Sorting Lane</ActionButton>
+            <ActionButton tone="secondary" onClick={() => setTab("handover")}><Handshake size={15} /> Rider Handover</ActionButton>
+            <ActionButton tone="secondary" onClick={() => setTab("exceptions")}><AlertTriangle size={15} /> Exceptions</ActionButton>
+          </div>
+        </motion.header>
 
-      {loadingRemote ? (
-        <div className="pointer-events-none fixed bottom-6 right-6 rounded-full bg-[#0d2c54] px-4 py-2 text-xs font-black uppercase tracking-wider text-white shadow-lg">
-          Syncing warehouse API...
-        </div>
-      ) : null}
-    </div>
-  );
-}
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[300px_minmax(0,1fr)]">
+          <motion.aside initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4 }} className="xl:sticky xl:top-6 xl:self-start">
+            <SurfaceCard className="p-3">
+              <div className="mb-3 px-2 text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Portal Navigation / Portal လမ်းညွှန်</div>
+              <nav className="flex flex-row flex-wrap gap-2 xl:flex-col">
+                {tabs.map((item) => {
+                  const Icon = item.icon;
+                  const active = tab === item.id;
+                  return (
+                    <motion.button key={item.id} type="button" onClick={() => setTab(item.id)} whileHover={{ x: 2 }} whileTap={{ scale: 0.985 }} className={tw("flex items-center gap-3 rounded-2xl px-4 py-3 text-left transition", active ? "bg-[#0d2c54] text-white shadow-[0_16px_30px_rgba(13,44,84,0.22)]" : "text-slate-600 hover:bg-slate-50")}>
+                      <Icon size={17} />
+                      <div>
+                        <div className="text-[11px] font-black uppercase tracking-[0.16em]">{item.label.en}</div>
+                        <div className={tw("mt-1 text-xs font-semibold", active ? "text-white/70" : "text-slate-400")}>{item.label.my}</div>
+                      </div>
+                    </motion.button>
+                  );
+                })}
+              </nav>
+              <div className="mt-5 border-t border-slate-200 pt-4">
+                <div className="mb-3 px-2 text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Demo States / စမ်းသပ်အခြေအနေများ</div>
+                <div className="grid grid-cols-2 gap-2">
+                  <ActionButton tone="secondary" onClick={() => setScreenState((prev) => ({ ...prev, [tab]: "loading" }))}>Loading</ActionButton>
+                  <ActionButton tone="secondary" onClick={() => setScreenState((prev) => ({ ...prev, [tab]: "empty" }))}>Empty</ActionButton>
+                  <ActionButton tone="secondary" onClick={() => setScreenState((prev) => ({ ...prev, [tab]: "error" }))}>Error</ActionButton>
+                  <ActionButton tone="secondary" onClick={() => setScreenState((prev) => ({ ...prev, [tab]: "ready" }))}>Ready</ActionButton>
+                </div>
+              </div>
+            </SurfaceCard>
+          </motion.aside>
 
-function StatCard({
-  icon: Icon,
-  title,
-  value,
-  accent = "default",
-}: {
-  icon: React.ComponentType<{ size?: number; className?: string }>;
-  title: string;
-  value: string;
-  accent?: "default" | "blue" | "green" | "red";
-}) {
-  const valueClass = accent === "blue" ? "text-blue-600" : accent === "green" ? "text-green-600" : accent === "red" ? "text-red-600" : "text-slate-800";
-  const iconClass = accent === "red" ? "text-red-500" : "text-[#0d2c54]";
-  return (
-    <div className="flex flex-col items-center justify-center rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-      <Icon size={26} className={iconClass} />
-      <p className="mb-2 mt-5 text-center text-xs font-black uppercase tracking-wider text-slate-400">{title}</p>
-      <p className={`text-4xl font-black ${valueClass}`}>{value}</p>
-    </div>
-  );
-}
-
-function StageButton({
-  icon: Icon,
-  title,
-  subtitle,
-  active,
-  onClick,
-}: {
-  icon: React.ComponentType<{ size?: number; className?: string }>;
-  title: string;
-  subtitle: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded-2xl px-4 py-4 text-left transition ${active ? "bg-[#0d2c54] text-white" : "bg-slate-50 text-slate-700 hover:bg-slate-100"}`}
-    >
-      <div className="flex items-center gap-3">
-        <Icon size={18} />
-        <div>
-          <p className="font-black">{title}</p>
-          <p className={`text-sm ${active ? "text-white/70" : "text-slate-500"}`}>{subtitle}</p>
+          <main>
+            <AnimatePresence mode="wait">
+              <motion.div key={`${tab}-${activeState}`} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.28 }}>
+                {activeState !== "ready" ? <AsyncStateView state={activeState} mode={mode} /> : views[tab]}
+              </motion.div>
+            </AnimatePresence>
+          </main>
         </div>
       </div>
-    </button>
-  );
-}
-
-function ChecklistRow({ label, done }: { label: string; done: boolean }) {
-  return (
-    <div className="flex items-center gap-2 rounded-xl bg-white px-3 py-2">
-      {done ? <CheckCircle2 size={16} className="text-emerald-500" /> : <AlertTriangle size={16} className="text-amber-500" />}
-      <span>{label}</span>
-    </div>
-  );
-}
-
-function InfoCard({ title, body }: { title: string; body: string }) {
-  return (
-    <div className="rounded-2xl bg-slate-50 p-4">
-      <div className="font-black text-[#0d2c54]">{title}</div>
-      <div className="mt-2 text-sm text-slate-500">{body}</div>
     </div>
   );
 }

@@ -1,0 +1,536 @@
+Create a production-ready Merchant Portal for a logistics, delivery, and COD business.
+This portal is strictly for merchant users, not for customers, riders, warehouse staff, customer service agents, finance staff, or admins.
+
+Core goal
+
+Build a modern, elegant, enterprise-grade Merchant Portal that helps merchants manage shipments, pickups, COD, payments, customers, reports, and support workflows in one secure platform.
+
+The portal must feel like a real production SaaS product used by merchants daily for operational control, financial visibility, and business growth.
+
+Important scope
+
+This portal is for merchants who:
+
+create and manage shipment bookings
+request pickups
+track parcel delivery progress
+monitor COD collection and transfer
+review historical shipment records
+manage customer/receiver addresses
+view invoices and statements
+handle returns and failed deliveries
+access reports and analytics
+contact support
+manage merchant profile and settings
+
+Do not build internal staff workflows or admin-only operations screens.
+
+Technical requirements
+Use React
+Use Tailwind CSS
+Use Framer Motion
+Make it production-ready
+Use clean reusable components
+Support desktop and tablet responsively
+Include loading, empty, error, and success states
+Ensure accessibility with clear labels, focus states, keyboard support, and readable layouts
+Design direction
+
+The UI must be:
+
+Modern
+Elegant
+Professional
+Premium
+Enterprise-standard
+Merchant-focused
+Clean and trustworthy
+Operationally efficient
+Styling requirements
+
+The portal must fully match a premium enterprise design system:
+
+elegant dashboard layout
+premium cards and panels
+polished tables
+beautifully styled form sections
+refined search/filter bars
+strong hierarchy
+subtle shadows and borders
+premium status badges
+smooth transitions
+tasteful animations
+consistent responsive layouts
+
+Use Framer Motion for:
+
+page transitions
+section reveal animations
+card entrance effects
+form transitions
+drawer/modal animations
+button tap feedback
+subtle state changes
+
+Animations must be refined and enterprise-appropriate.
+
+Language requirement
+
+Make the portal fully bilingual in English + Myanmar (Burmese).
+
+All important merchant-facing text must support bilingual display:
+
+page titles
+labels
+placeholders
+helper text
+validation messages
+table headers
+buttons
+notices
+empty states
+statuses
+alerts
+
+English should appear first, Myanmar (Burmese) second.
+
+Required portal structure
+1. Merchant Dashboard
+
+Create a merchant dashboard that gives a clear business overview.
+
+Include:
+welcome header
+merchant summary card
+quick actions
+shipment summary
+pickup summary
+COD summary
+payment summary
+issue/exception summary
+recent activities
+notifications
+business performance widgets
+KPI cards
+
+Include elegant summary cards for:
+
+today’s shipments
+active shipments
+delivered shipments
+failed delivery attempts
+pending pickups
+total COD collected
+COD pending transfer
+COD transferred
+return shipments
+open support tickets
+Quick actions
+
+Add shortcuts such as:
+
+Create Shipment
+Bulk Upload Shipments
+Request Pickup
+Track Shipments
+View COD Statement
+View Reports
+Contact Support
+2. Merchant Profile and Business Settings
+
+Create a merchant profile screen showing sign-up and business information.
+
+Show:
+business name
+owner/contact name
+merchant ID
+phone number
+email
+registered address
+pickup address
+township / city / region
+business type
+preferred payment method
+bank account details
+COD settlement preference
+member since
+account status
+Include sections for:
+business profile
+contact information
+default pickup location
+return address
+billing information
+settlement settings
+notification preferences
+language preferences
+security settings
+password update
+authorized users/sub-accounts if needed
+3. Create Shipment / Booking Screen
+
+Create a polished merchant shipment booking screen.
+
+Required sections
+Sender / Merchant Info
+merchant name
+sender contact
+pickup address
+township / city
+pickup instructions
+Receiver Info
+receiver name
+receiver phone
+receiver email if applicable
+delivery address
+township / city / region
+landmark / instructions
+Shipment / Parcel Info
+parcel type
+item description
+quantity
+weight
+dimensions
+fragile toggle
+urgent toggle
+declared value
+COD amount
+delivery note
+Service Options
+same day / next day / standard
+pickup date
+preferred delivery slot
+insurance option
+payment responsibility
+special handling option
+Booking Summary
+base delivery fee
+COD handling fee
+insurance fee
+weight surcharge
+total estimated charge
+submit booking
+save draft
+UX expectations
+clean grouped forms
+live fee summary
+strong validation
+polished confirmations
+draft-saving support
+premium enterprise form styling
+4. Bulk Shipment Upload
+
+Create a merchant-friendly bulk upload workflow.
+
+Include:
+downloadable template
+drag-and-drop file upload
+CSV/XLSX import
+column mapping preview
+validation errors
+duplicate detection
+row-by-row preview
+successful upload summary
+failed rows export
+Add controls for:
+save as draft batch
+submit batch
+retry failed records
+edit imported rows before submission
+5. Shipment Management Screen
+
+Create a shipment list screen for merchants to manage all shipments.
+
+Include:
+searchable shipment table
+filters by date range
+filters by status
+filters by destination
+filters by COD
+filters by pickup status
+filters by return status
+Show columns such as:
+tracking ID
+booking date
+receiver name
+destination
+service type
+COD amount
+delivery fee
+shipment status
+pickup status
+payment status
+return status
+actions
+Actions
+view details
+track
+print label
+download invoice
+cancel shipment if allowed
+request modification if allowed
+duplicate shipment / reorder
+6. Cargo Tracking and Shipment Detail
+
+Create a full tracking screen for merchants.
+
+Include:
+tracking search
+shipment detail drawer or screen
+current shipment status
+full milestone timeline
+current location
+assigned rider/agent if available
+estimated delivery time
+delivery proof if delivered
+failed attempt reason if unsuccessful
+return reason if returned
+COD status
+customer/receiver contact summary
+Timeline examples
+booked
+pickup scheduled
+picked up
+received at branch/hub
+in transit
+out for delivery
+delivered
+failed delivery
+returned
+7. Pickup Requests
+
+Create a dedicated pickup management screen.
+
+Include:
+new pickup request form
+scheduled pickups
+pending pickups
+pickup history
+pickup rescheduling
+pickup cancellation if allowed
+pickup time slot selection
+rider assignment status if available
+Fields
+pickup date
+pickup time window
+estimated parcel count
+notes
+contact person
+pickup address
+8. COD and Settlement Portal
+
+Create a major merchant-facing financial section for COD visibility.
+
+Include:
+COD summary cards
+COD collected
+COD pending
+COD transferred
+COD on hold
+settlement schedule
+upcoming transfer date
+deductions/fees summary
+COD statement table
+
+Show:
+
+shipment ID
+delivered date
+receiver
+COD amount
+service fee
+deduction
+net payable
+transfer status
+settlement batch number
+transfer date
+Add features
+date filters
+branch filters
+export statement
+downloadable settlement report
+printable summary
+dispute / inquiry button
+9. Billing, Invoices, and Financial Statements
+
+Create a merchant financial document area.
+
+Include:
+invoices
+account statements
+transaction history
+billing summary
+pending invoices
+paid invoices
+downloadable PDFs
+exportable spreadsheets
+Show:
+invoice number
+billing period
+total charges
+COD fees
+settlement deductions
+payment status
+due date
+10. Returns, Failed Deliveries, and Exceptions
+
+Create a merchant exception management screen.
+
+Include:
+failed delivery list
+NDR / failed attempt reasons
+return-to-sender list
+exception queue
+damaged/lost parcel claims
+reschedule delivery request
+update receiver contact request
+return approval or instruction submission
+Exception actions
+reattempt delivery
+update phone/address request
+return to sender
+hold shipment
+escalate to support
+11. Merchant Reports and Analytics
+
+Create a merchant-facing reporting and analytics section.
+
+Include reports such as:
+shipment volume by day/week/month
+delivery success rate
+failed delivery rate
+COD collection summary
+COD settlement history
+destination analysis
+branch/zone performance
+return rate
+revenue and fee summary
+top receivers / frequent destinations
+shipment trend chart
+Filters
+date range
+branch
+zone
+service type
+destination
+COD vs non-COD
+shipment status
+Export options
+CSV
+XLSX
+PDF
+12. Customer / Receiver Directory
+
+Create a merchant-side address book or receiver directory.
+
+Include:
+saved receiver list
+phone search
+address search
+add new receiver
+edit receiver
+delete receiver
+frequently used receivers
+recent receivers
+delivery notes / preferred instructions
+13. Support Center
+
+Create a merchant-facing support center.
+
+Include:
+support ticket list
+new ticket form
+issue categories
+shipment-related complaint form
+COD inquiry form
+billing inquiry form
+live chat preview
+FAQ / help articles
+escalation requests
+attachment upload
+Ticket fields
+ticket ID
+subject
+issue type
+related shipment ID
+priority
+description
+attachment
+status
+last updated
+14. Notifications and Activity Feed
+
+Create a merchant notification center.
+
+Include:
+new delivery updates
+COD settlement alerts
+failed delivery alerts
+pickup reminders
+invoice due notices
+support updates
+operational announcements
+UI expectations
+notification badges
+recent activity timeline
+unread/read states
+grouped alerts
+empty state when no notifications
+15. Security and Access
+
+Merchant portal should support:
+
+secure login
+role-friendly structure
+sub-user access if applicable
+action logging for sensitive financial areas
+password update
+device/session awareness
+notification preferences
+16. Shared UX expectations
+
+Across the whole portal:
+
+make it efficient for business operations
+support high-volume merchants
+reduce clutter with strong grouping
+emphasize shipment and COD visibility
+use premium tables, filters, forms, and summaries
+make the portal feel trustworthy and financially transparent
+17. Motion expectations
+
+Use Framer Motion for:
+
+page transitions
+section reveals
+card entrance animations
+drawer/modal transitions
+table fade/slide transitions
+button tap feedback
+success/error state transitions
+18. Output requirement
+
+Return a full production-ready React implementation of the Merchant Portal, using Tailwind CSS and Framer Motion.
+
+The portal must include:
+
+Merchant Dashboard
+Merchant Profile
+Create Shipment
+Bulk Upload
+Shipment Management
+Tracking
+Pickup Requests
+COD and Settlement
+Billing and Statements
+Returns and Exceptions
+Reports and Analytics
+Receiver Directory
+Support Center
+Notifications
+
+Use realistic sample data and make the UI elegant, bilingual, and enterprise-grade.
+
+Smaller version:
+
+Create a production-ready Merchant Portal in React using Tailwind CSS and Framer Motion. The portal is for merchants only and must include dashboard, profile, create shipment, bulk upload, shipment management, cargo tracking, pickup requests, COD and settlement, billing/statements, exceptions/returns, reports, receiver directory, support center, and notifications. The UI must be modern, elegant, bilingual in English and Myanmar, and feel like a premium enterprise SaaS platform for logistics merchants.

@@ -1,299 +1,392 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { RefreshCw, ReceiptText, Wallet, Undo2, FileText } from "lucide-react";
 import {
-  FINANCE_ENDPOINTS,
-  formatDateTime,
-  formatMMK,
-  getItems,
-  toNumber,
-  toText,
-  tryGet,
-} from "@/lib/productionApi";
+  AlertTriangle,
+  BookOpen,
+  Briefcase,
+  Building2,
+  CheckCircle2,
+  Database,
+  Download,
+  FileSpreadsheet,
+  Filter,
+  Globe2,
+  LayoutDashboard,
+  Settings,
+  Wallet,
+} from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { useAuth } from "@/contexts/AuthContext";
 
-type InvoiceRow = {
-  id: string;
-  invoiceNo: string;
-  merchant: string;
-  amount: number;
-  status: string;
-  issuedAt: string;
-};
+type UiLanguage = "en" | "my" | "both";
 
-type SettlementRow = {
-  id: string;
-  settlementNo: string;
-  merchant: string;
-  amount: number;
-  status: string;
-  releasedAt: string;
-};
+// --- ORIGINAL ARRAYS FROM YOUR CODE ---
+const financeTabs = [
+  { id: "overview", en: "Overview", my: "အကျဉ်းချုပ်" },
+  { id: "cod_hand", en: "COD on hand / collected", my: "လက်ဝယ် COD / ကောက်ခံပြီး" },
+  { id: "cod_transferred", en: "COD already transferred", my: "လွှဲပြောင်းပြီး COD" },
+  { id: "cod_pending", en: "COD to be collected", my: "ကောက်ခံရန် COD" },
+  { id: "prepaid_hand", en: "Merchant prepaid on hand", my: "လက်ဝယ် Merchant prepaid" },
+  { id: "prepaid_transferred", en: "Merchant prepaid transferred", my: "လွှဲပြောင်းပြီး Merchant prepaid" },
+];
 
-type RefundRow = {
-  id: string;
-  referenceNo: string;
-  merchant: string;
-  amount: number;
-  status: string;
-  createdAt: string;
-};
+const financeModules = [
+  { enModule: "Deliveryman accounting overview", myModule: "Deliveryman accounting အကျဉ်းချုပ်", enPurpose: "Track deliveryman cash, transferred COD, pending COD collection, and merchant prepaid balances.", myPurpose: "Deliveryman ၏ ငွေသား၊ လွှဲပြောင်းပြီး COD၊ ကောက်ခံရန် COD နှင့် merchant prepaid လက်ကျန်များကို စောင့်ကြည့်ရန်။", enScreen: "Financial center / deliveryman accounting", myScreen: "Financial center / deliveryman accounting", enStatus: "Ready", myStatus: "အသင့်ရှိ" },
+  { enModule: "Account balance", myModule: "စာရင်းလက်ကျန်", enPurpose: "Search account balances by date range, branch, and zone.", myPurpose: "ရက်စွဲအကွာအဝေး၊ branch နှင့် zone အလိုက် account balance များရှာဖွေရန်။", enScreen: "Accounting > Accounts > Account balance", myScreen: "Accounting > Accounts > Account balance", enStatus: "Ready", myStatus: "အသင့်ရှိ" },
+  { enModule: "Account name / title list", myModule: "စာရင်းခေါင်းစဉ်စာရင်း", enPurpose: "Maintain chart-of-account codes, types, remarks, and updated dates.", myPurpose: "Chart-of-account code များ၊ type များ၊ remark များနှင့် update date များကို စီမံရန်။", enScreen: "Accounting > Accounts > Account name/title", myScreen: "Accounting > Accounts > Account name/title", enStatus: "Ready", myStatus: "အသင့်ရှိ" },
+  { enModule: "Simple transaction", myModule: "ရိုးရိုး transaction", enPurpose: "Record non-accounting journal actions with branch, zone, merchant, amount, and evidence photos.", myPurpose: "Branch, zone, merchant, amount နှင့် reference photo များဖြင့် non-accounting journal action များမှတ်တမ်းတင်ရန်။", enScreen: "Accounting > Transactions > Simple transaction", myScreen: "Accounting > Transactions > Simple transaction", enStatus: "Priority", myStatus: "ဦးစားပေး" },
+  { enModule: "Journal voucher entry", myModule: "Journal voucher ဖြည့်သွင်းခြင်း", enPurpose: "Capture debit and credit account lines with customer, merchant, date, and attachments.", myPurpose: "Customer, merchant, date နှင့် attachment များနှင့်အတူ debit / credit account line များဖြည့်သွင်းရန်။", enScreen: "Accounting > Transactions > Journal voucher entry", myScreen: "Accounting > Transactions > Journal voucher entry", enStatus: "Priority", myStatus: "ဦးစားပေး" },
+  { enModule: "Cash voucher entry", myModule: "Cash voucher ဖြည့်သွင်းခြင်း", enPurpose: "Record received-in and received-from accounts together with payment evidence.", myPurpose: "Received in / received from account များကို payment evidence များနှင့်အတူ မှတ်တမ်းတင်ရန်။", enScreen: "Accounting > Transactions > Cash voucher entry", myScreen: "Accounting > Transactions > Cash voucher entry", enStatus: "Priority", myStatus: "ဦးစားပေး" },
+  { enModule: "Journal voucher list", myModule: "Journal voucher စာရင်း", enPurpose: "Browse voucher references, account titles, debit/credit totals, and supporting images.", myPurpose: "Voucher reference များ၊ account title များ၊ debit/credit စုစုပေါင်းနှင့် supporting image များကို ကြည့်ရှုရန်။", enScreen: "Accounting > Transactions > Journal voucher list", myScreen: "Accounting > Transactions > Journal voucher list", enStatus: "Ready", myStatus: "အသင့်ရှိ" },
+  { enModule: "Cash voucher list", myModule: "Cash voucher စာရင်း", enPurpose: "Review opening balance, closing balance, received cash, and bank payments.", myPurpose: "Opening balance၊ closing balance၊ received cash နှင့် bank payment များကို ပြန်လည်စစ်ဆေးရန်။", enScreen: "Accounting > Transactions > Cash voucher list", myScreen: "Accounting > Transactions > Cash voucher list", enStatus: "Ready", myStatus: "အသင့်ရှိ" },
+  { enModule: "General ledger", myModule: "General ledger", enPurpose: "Filter ledger entries by date, account, branch, and zone.", myPurpose: "Ledger entry များကို date, account, branch, zone အလိုက် filter လုပ်ရန်။", enScreen: "Accounting > Transactions > General ledger list", myScreen: "Accounting > Transactions > General ledger list", enStatus: "Ready", myStatus: "အသင့်ရှိ" },
+  { enModule: "Cash book summary", myModule: "ငွေစာရင်းအနှစ်ချုပ်", enPurpose: "Summarize opening balance, closing balance, received amounts, and payments by account.", myPurpose: "Opening balance၊ closing balance၊ received amount နှင့် payment များကို account အလိုက် အနှစ်ချုပ်ရန်။", enScreen: "Accounting > Financial reports > Cash book summary", myScreen: "Accounting > Financial reports > Cash book summary", enStatus: "Ready", myStatus: "အသင့်ရှိ" },
+  { enModule: "Financial statement suite", myModule: "ဘဏ္ဍာရေးအစီရင်ခံစာအစု", enPurpose: "Prepare journal summary, trial balance, income statement, balance sheet, and profit/loss reports.", myPurpose: "Journal summary၊ trial balance၊ income statement၊ balance sheet နှင့် profit/loss report များပြုလုပ်ရန်။", enScreen: "Accounting > Financial reports", myScreen: "Accounting > Financial reports", enStatus: "Planned", myStatus: "စီစဉ်ထားသည်" },
+];
 
-function normalizeInvoices(input: unknown): InvoiceRow[] {
-  return getItems(input).map((row, index) => ({
-    id: toText(row.id, `i-${index}`),
-    invoiceNo: toText(row.invoice_no, row.code, `INV-${index + 1}`),
-    merchant: toText(row.merchant_name, row.merchant_account_name, row.merchant_account_id, "-"),
-    amount: toNumber(row.total_amount, row.amount, row.invoice_amount),
-    status: toText(row.status, "draft"),
-    issuedAt: toText(row.issued_at, row.created_at, "-"),
-  }));
+const exportFormats = [
+  ["CSV", "ဒေတာအချက်အလက် export"],
+  ["XLSX", "စာရင်းကိုင်အဖွဲ့သုံး spreadsheet export"],
+  ["PDF", "စစ်ဆေးရေးနှင့်လက်မှတ်တင်သိမ်းဆည်းရန် export"],
+];
+
+const backendViews = [
+  "finance_deliveryman_accounting_v",
+  "finance_account_balances_v",
+  "finance_chart_of_accounts_v",
+  "finance_simple_transactions_v",
+  "finance_journal_vouchers_v",
+  "finance_cash_vouchers_v",
+  "finance_general_ledger_v",
+  "finance_cash_book_summary_v",
+  "finance_financial_statements_v",
+];
+
+const MOCK_DELIVERYMEN = [
+  { id: "d1", name: "Aung Aung", branch: "YGN-HQ", codHand: 450000, codTransferred: 1200000, codPending: 50000, prepaidHand: 0, prepaidTransferred: 15000 },
+  { id: "d2", name: "Kyaw Zayar", branch: "MDY-01", codHand: 0, codTransferred: 850000, codPending: 0, prepaidHand: 25000, prepaidTransferred: 0 },
+  { id: "d3", name: "Min Khant", branch: "YGN-HQ", codHand: 120000, codTransferred: 300000, codPending: 10000, prepaidHand: 5000, prepaidTransferred: 0 },
+];
+
+function bi(language: UiLanguage, en: string, my: string) {
+  if (language === "en") return en;
+  if (language === "my") return my;
+  return `${en} / ${my}`;
 }
 
-function normalizeSettlements(input: unknown): SettlementRow[] {
-  return getItems(input).map((row, index) => ({
-    id: toText(row.id, `s-${index}`),
-    settlementNo: toText(row.settlement_no, row.code, `SET-${index + 1}`),
-    merchant: toText(row.merchant_name, row.merchant_account_name, row.merchant_account_id, "-"),
-    amount: toNumber(row.total_amount, row.amount, row.release_amount),
-    status: toText(row.status, "prepared"),
-    releasedAt: toText(row.released_at, row.created_at, "-"),
-  }));
+function formatMMK(value: number) {
+  return `${value.toLocaleString()} MMK`;
 }
 
-function normalizeRefunds(input: unknown): RefundRow[] {
-  return getItems(input).map((row, index) => ({
-    id: toText(row.id, `r-${index}`),
-    referenceNo: toText(row.refund_no, row.reference_no, `REF-${index + 1}`),
-    merchant: toText(row.merchant_name, row.merchant_account_name, row.merchant_account_id, "-"),
-    amount: toNumber(row.amount, row.refund_amount),
-    status: toText(row.status, "submitted"),
-    createdAt: toText(row.created_at, row.updated_at, "-"),
-  }));
-}
+// LOCAL DEV BYPASS
+function hasAccess(user: any) { return true; }
 
-function badge(status: string) {
-  const s = status.toLowerCase();
-  if (["released", "approved", "paid", "completed"].includes(s)) return "bg-emerald-100 text-emerald-700";
-  if (["prepared", "pending", "submitted", "draft"].includes(s)) return "bg-amber-100 text-amber-700";
-  if (["failed", "rejected", "cancelled"].includes(s)) return "bg-rose-100 text-rose-700";
-  return "bg-slate-100 text-slate-700";
-}
-
-export default function FinancialReportsPage() {
-  const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
-  const [settlements, setSettlements] = useState<SettlementRow[]>([]);
-  const [refunds, setRefunds] = useState<RefundRow[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetchAll();
-  }, []);
-
-  async function fetchAll() {
-    setLoading(true);
-    setError(null);
-
-    const [invoiceRes, settlementRes, refundRes] = await Promise.allSettled([
-      tryGet<unknown>(FINANCE_ENDPOINTS.invoices),
-      tryGet<unknown>(FINANCE_ENDPOINTS.settlements),
-      tryGet<unknown>(FINANCE_ENDPOINTS.refunds),
-    ]);
-
-    const errors: string[] = [];
-
-    if (invoiceRes.status === "fulfilled") {
-      setInvoices(normalizeInvoices(invoiceRes.value));
-    } else {
-      errors.push("Invoices API unavailable");
-      setInvoices([]);
+export default function FinancialCenterPage() {
+  const contextLanguage = (() => {
+    try {
+      return useLanguage()?.lang as UiLanguage | undefined;
+    } catch {
+      return undefined;
     }
-
-    if (settlementRes.status === "fulfilled") {
-      setSettlements(normalizeSettlements(settlementRes.value));
-    } else {
-      errors.push("Settlements API unavailable");
-      setSettlements([]);
+  })();
+  const auth = (() => {
+    try {
+      return useAuth();
+    } catch {
+      return undefined;
     }
+  })();
 
-    if (refundRes.status === "fulfilled") {
-      setRefunds(normalizeRefunds(refundRes.value));
-    } else {
-      errors.push("Refunds API unavailable");
-      setRefunds([]);
-    }
+  const user = auth?.user ?? {};
+  const accessAllowed = hasAccess(user);
 
-    if (errors.length === 3) {
-      setError("Financial APIs are unreachable. Check finance endpoints and NEXT_PUBLIC_API_BASE_URL.");
-    }
+  const [language, setLanguage] = useState<UiLanguage>(
+    contextLanguage === "en" ? "en" : contextLanguage === "mm" ? "my" : "both"
+  );
+  
+  const [activeTab, setActiveTab] = useState("overview");
 
-    setLoading(false);
+  if (!accessAllowed) {
+    return (
+      <div className="min-h-screen bg-[#f7f9fc] p-8 flex items-center justify-center">
+        <div className="rounded-[32px] border border-rose-200 bg-white p-8 shadow-sm flex items-start gap-4 max-w-xl">
+          <div className="rounded-2xl bg-rose-50 p-3 text-rose-600">
+            <AlertTriangle size={24} />
+          </div>
+          <div>
+            <h1 className="text-2xl font-black text-[#0d2c54]">Finance Portal Access Restricted</h1>
+            <p className="mt-2 text-sm text-slate-500">
+              This portal is strictly for Super Admin, Admin, and Finance team members.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
   }
 
-  const totals = useMemo(() => {
-    const invoiced = invoices.reduce((sum, row) => sum + row.amount, 0);
-    const settled = settlements.reduce((sum, row) => sum + row.amount, 0);
-    const refund = refunds.reduce((sum, row) => sum + row.amount, 0);
-
-    return {
-      invoiceCount: invoices.length,
-      settlementCount: settlements.length,
-      totalInvoiced: invoiced,
-      totalSettled: settled,
-      totalRefunds: refund,
-    };
-  }, [invoices, settlements, refunds]);
-
   return (
-    <div className="min-h-screen bg-[#f7f9fc] p-8">
-      <div className="space-y-2">
-        <p className="text-xs font-bold uppercase tracking-[0.3em] text-slate-400">Administration</p>
-        <h1 className="text-4xl font-black uppercase tracking-tight text-[#0d2c54]">
-          Financial Reports <span className="font-normal">/ ငွေကြေးအစီရင်ခံစာများ</span>
-        </h1>
-        <p className="text-slate-500">
-          Revenue dashboard, merchant billing, settlement release, refund review, and finance operations. /
-          ဝင်ငွေဒက်ရှ်ဘုတ်၊ ကုန်သည်ဘီလ်များ၊ စာရင်းရှင်းမှုများ၊ ပြန်အမ်းငွေစစ်ဆေးမှုနှင့် ငွေကြေးလုပ်ငန်းများ
-        </p>
-      </div>
-
-      {error && (
-        <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">
-          {error}
+    <div className="min-h-screen bg-[#f7f9fc] p-8 pb-24 font-sans">
+      
+      {/* HEADER */}
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+        <div className="space-y-2">
+          <p className="text-xs font-bold uppercase tracking-[0.3em] text-slate-400">
+            {bi(language, "Finance Suite", "ငွေကြေးလုပ်ငန်းအစု")}
+          </p>
+          <h1 className="text-4xl font-black uppercase tracking-tight text-[#0d2c54]">
+            {bi(language, "Financial Center and Accounting Workspace", "ငွေကြေးစီမံခန့်ခွဲမှုနှင့် စာရင်းကိုင်လုပ်ငန်းခွင်")}
+          </h1>
+          <p className="max-w-4xl text-slate-500 font-medium">
+            {bi(
+              language,
+              "This page consolidates the BE finance and accounting screens into a cleaner bilingual operator hub for deliveryman accounting, account balances, vouchers, ledgers, cashbook summaries, and exports.",
+              "ဤစာမျက်နှာသည် BE finance နှင့် accounting screen များကို deliveryman accounting၊ account balance၊ voucher၊ ledger၊ cash book summary နှင့် export များအတွက် ပိုမိုရှင်းလင်းသော ဘာသာနှစ်မျိုး operator hub အဖြစ် စုစည်းထားသည်။"
+            )}
+          </p>
         </div>
-      )}
 
-      <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard icon={ReceiptText} title="Merchant Invoices" value={`${totals.invoiceCount}`} subtitle="Invoice batches" />
-        <StatCard icon={Wallet} title="Settlements" value={`${totals.settlementCount}`} subtitle="Prepared / released" />
-        <StatCard icon={FileText} title="Total Invoiced" value={formatMMK(totals.totalInvoiced)} subtitle="Gross invoiced amount" />
-        <StatCard icon={Undo2} title="Refund Exposure" value={formatMMK(totals.totalRefunds)} subtitle="Refund / adjustment" />
+        <LanguageToggle value={language} onChange={setLanguage} />
+      </div>
+
+      {/* FILTER SECTION */}
+      <div className="mt-8 rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex items-center gap-3 border-b border-slate-100 pb-4 mb-4">
+          <Filter size={18} className="text-indigo-500" />
+          <div>
+            <h2 className="text-lg font-black text-[#0d2c54]">{bi(language, "Unified Finance Run Filter", "တစ်စုတစ်စည်းတည်း ငွေကြေး filter")}</h2>
+            <p className="text-sm text-slate-500">{bi(language, "Single control surface for deliveryman accounting, account balance checks, voucher lists, ledger lookups, cashbook summaries, and exports.", "Deliveryman accounting၊ account balance စစ်ဆေးမှု၊ voucher list၊ ledger ရှာဖွေမှု၊ cash book summary နှင့် export များအတွက် တစ်နေရာတည်းမှ ထိန်းချုပ်နိုင်သော filter ဖြစ်သည်။")}</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <FilterInput label={bi(language, "Workspace", "လုပ်ငန်းအမျိုးအစား")} placeholder={bi(language, "Deliveryman / accounts / transactions", "Deliveryman / accounts / transactions")} />
+          <FilterInput label={bi(language, "Date range", "ရက်စွဲအကွာအဝေး")} placeholder="YYYY-MM-DD → YYYY-MM-DD" />
+          <FilterInput label={bi(language, "Branch and zone", "Branch နှင့် zone")} placeholder={bi(language, "All branches / all zones", "Branch အားလုံး / zone အားလုံး")} />
+          <FilterInput label={bi(language, "Merchant or customer", "Merchant သို့မဟုတ် customer")} placeholder={bi(language, "Optional party filter", "လိုအပ်ပါက ပါတီ filter")} />
+          <FilterInput label={bi(language, "Account or voucher reference", "Account သို့မဟုတ် voucher reference")} placeholder={bi(language, "Account name, code, voucher no.", "Account name၊ code၊ voucher no.")} />
+          <FilterInput label={bi(language, "Export format", "Export format")} placeholder="CSV / XLSX / PDF" />
+        </div>
+      </div>
+
+      {/* TABS */}
+      <div className="mt-8 flex flex-wrap gap-2">
+        {financeTabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`rounded-2xl px-5 py-3 text-xs font-black uppercase tracking-wider transition ${
+              activeTab === tab.id
+                ? "bg-[#0d2c54] text-white shadow-lg"
+                : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+            }`}
+          >
+            {bi(language, tab.en, tab.my)}
+          </button>
+        ))}
       </div>
 
       <div className="mt-8">
-        <button onClick={fetchAll} className="inline-flex items-center gap-2 rounded-2xl bg-[#0d2c54] px-4 py-3 text-xs font-black uppercase tracking-wider text-white hover:opacity-95">
-          <RefreshCw size={14} />
-          {loading ? "Refreshing..." : "Refresh"}
-        </button>
-      </div>
+        {/* OVERVIEW TAB */}
+        {activeTab === "overview" && (
+          <div className="space-y-6">
+            <Panel title={bi(language, "Bilingual Accounting Control Center", "ဘာသာနှစ်မျိုး စာရင်းကိုင်ထိန်းချုပ်မှုစင်တာ")}>
+              <DataTable
+                headers={[bi(language, "Module", "Module"), bi(language, "Purpose", "ရည်ရွယ်ချက်"), bi(language, "Source screen", "မူလ screen"), bi(language, "Status", "အခြေအနေ")]}
+                rows={financeModules.map(item => [
+                  <span key="1" className="font-bold text-[#0d2c54]">{bi(language, item.enModule, item.myModule)}</span>,
+                  <span key="2" className="text-slate-600">{bi(language, item.enPurpose, item.myPurpose)}</span>,
+                  <span key="3" className="text-slate-400 text-xs">{bi(language, item.enScreen, item.myScreen)}</span>,
+                  <span key="4" className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${item.enStatus === "Ready" ? "bg-emerald-100 text-emerald-700" : item.enStatus === "Priority" ? "bg-rose-100 text-rose-700" : "bg-amber-100 text-amber-700"}`}>
+                    {bi(language, item.enStatus, item.myStatus)}
+                  </span>
+                ])}
+              />
+            </Panel>
 
-      <div className="mt-8 grid gap-4 xl:grid-cols-2">
-        <Panel title="Merchant Billing / ကုန်သည်ဘီလ်များ">
-          <DataTable
-            headers={["Invoice", "Merchant", "Amount", "Status", "Issued"]}
-            rows={invoices.map((row) => [
-              row.invoiceNo,
-              row.merchant,
-              formatMMK(row.amount),
-              <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase ${badge(row.status)}`}>{row.status}</span>,
-              formatDateTime(row.issuedAt),
-            ])}
-            emptyText="No invoices found."
-          />
-        </Panel>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Panel title={bi(language, "Voucher-entry Capability Matrix", "Voucher ဖြည့်သွင်းမှု capability matrix")}>
+                <DataTable
+                  headers={[bi(language, "Feature", "Feature"), bi(language, "Simple transaction", "Simple transaction"), bi(language, "Journal voucher", "Journal voucher"), bi(language, "Cash voucher", "Cash voucher")]}
+                  rows={[
+                    [<span key="1" className="font-bold">{bi(language, "Branch & zone filters", "Branch နှင့် zone filter")}</span>, bi(language, "Yes", "ရှိသည်"), bi(language, "Yes", "ရှိသည်"), bi(language, "Yes", "ရှိသည်")],
+                    [<span key="2" className="font-bold">{bi(language, "Party selector", "Merchant / customer ရွေးချယ်ခြင်း")}</span>, bi(language, "Merchant", "Merchant"), bi(language, "Merchant + Customer", "Merchant + Customer"), bi(language, "Merchant + Customer", "Merchant + Customer")],
+                    [<span key="3" className="font-bold">{bi(language, "Account line builder", "Account line builder")}</span>, bi(language, "Single account", "Single account"), bi(language, "Debit & credit lines", "Debit နှင့် credit line များ"), bi(language, "Received in / from lines", "Received in / from line များ")],
+                    [<span key="4" className="font-bold">{bi(language, "Reference photos", "Reference photo များ")}</span>, bi(language, "Up to 3", "၃ ပုံထိ"), bi(language, "Up to 3", "၃ ပုံထိ"), bi(language, "Up to 3", "၃ ပုံထိ")],
+                  ]}
+                />
+              </Panel>
 
-        <Panel title="Merchant Settlements / ကုန်သည်စာရင်းရှင်းမှု">
-          <DataTable
-            headers={["Settlement", "Merchant", "Amount", "Status", "Released"]}
-            rows={settlements.map((row) => [
-              row.settlementNo,
-              row.merchant,
-              formatMMK(row.amount),
-              <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase ${badge(row.status)}`}>{row.status}</span>,
-              formatDateTime(row.releasedAt),
-            ])}
-            emptyText="No settlements found."
-          />
-        </Panel>
-      </div>
+              <div className="space-y-6">
+                <Panel title={bi(language, "Suggested Data Views / API Contracts", "အကြံပြု data view / API contract များ")}>
+                  <div className="grid grid-cols-1 gap-2">
+                    {backendViews.map(view => (
+                      <div key={view} className="flex items-center gap-3 bg-slate-50 border border-slate-100 rounded-xl p-3 text-sm font-mono text-slate-600">
+                        <Database size={14} className="text-blue-400" /> {view}
+                      </div>
+                    ))}
+                  </div>
+                </Panel>
 
-      <div className="mt-8">
-        <Panel title="Refund / Adjustment Desk / ပြန်အမ်းငွေနှင့် ပြင်ဆင်မှု">
-          <DataTable
-            headers={["Reference", "Merchant", "Amount", "Status", "Created"]}
-            rows={refunds.map((row) => [
-              row.referenceNo,
-              row.merchant,
-              formatMMK(row.amount),
-              <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase ${badge(row.status)}`}>{row.status}</span>,
-              formatDateTime(row.createdAt),
-            ])}
-            emptyText="No refunds found."
-          />
-        </Panel>
+                <Panel title={bi(language, "Recommended Export Formats", "အကြံပြု export format များ")}>
+                  <div className="space-y-3">
+                    {exportFormats.map(([en, myLabel, myDesc]) => (
+                      <div key={en} className="flex items-center gap-4 bg-slate-50 border border-slate-100 rounded-xl p-4">
+                        <div className="bg-[#0d2c54] text-white rounded-lg p-2"><Download size={16}/></div>
+                        <div>
+                          <p className="font-black text-[#0d2c54]">{en}</p>
+                          <p className="text-xs text-slate-500 mt-1">{bi(language, myLabel, myDesc)}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </Panel>
+              </div>
+            </div>
+
+            <Panel title={bi(language, "Production Notes", "Production မှတ်ချက်များ")}>
+              <ul className="space-y-3">
+                {[
+                  bi(language, "Keep deliveryman accounting as a tabbed summary with search and transfer-focused columns.", "Deliveryman accounting ကို search ပါဝင်ပြီး transfer ကိုအဓိကထားသည့် column များနှင့် tabbed summary အဖြစ်ထားရှိပါ။"),
+                  bi(language, "Use date, branch, and zone filters consistently across account balance, general ledger, and cash book screens.", "Account balance၊ general ledger နှင့် cash book screen များတွင် date, branch, zone filter များကို တူညီစွာအသုံးပြုပါ။"),
+                  bi(language, "Support image evidence upload on all voucher-entry flows, matching the three-reference-photo pattern in the uploaded screens.", "Upload screen များတွင်မြင်ရသည့် reference photo သုံးပုံ pattern အတိုင်း voucher-entry flow အားလုံးတွင် image evidence upload ကိုပံ့ပိုးပါ။"),
+                  bi(language, "Prepare list outputs with pagination, export, and keyword search for journal and cash voucher histories.", "Journal နှင့် cash voucher history များအတွက် pagination၊ export နှင့် keyword search ပါဝင်သော list output များပြုလုပ်ပါ။")
+                ].map((note, idx) => (
+                  <li key={idx} className="flex items-start gap-3 bg-blue-50/50 p-4 rounded-xl border border-blue-100">
+                    <CheckCircle2 size={18} className="text-blue-500 mt-0.5 flex-shrink-0" />
+                    <span className="text-sm font-medium text-slate-700">{note}</span>
+                  </li>
+                ))}
+              </ul>
+            </Panel>
+          </div>
+        )}
+
+        {/* DELIVERYMAN ACCOUNTING TABS (COD / PREPAID) */}
+        {activeTab !== "overview" && (
+          <Panel title={financeTabs.find(t => t.id === activeTab)?.en || "Deliveryman Accounting"}>
+            <DataTable
+              headers={[
+                bi(language, "Deliveryman", "ပို့ဆောင်သူ"),
+                bi(language, "Branch", "ဘဏ်ခွဲ"),
+                bi(language, "Amount", "ငွေပမာဏ"),
+                bi(language, "Status", "အခြေအနေ"),
+                bi(language, "Action", "လုပ်ဆောင်ချက်")
+              ]}
+              rows={MOCK_DELIVERYMEN.filter(d => {
+                if (activeTab === "cod_hand") return d.codHand > 0;
+                if (activeTab === "cod_transferred") return d.codTransferred > 0;
+                if (activeTab === "cod_pending") return d.codPending > 0;
+                if (activeTab === "prepaid_hand") return d.prepaidHand > 0;
+                if (activeTab === "prepaid_transferred") return d.prepaidTransferred > 0;
+                return true;
+              }).map(d => {
+                let amt = 0;
+                if (activeTab === "cod_hand") amt = d.codHand;
+                if (activeTab === "cod_transferred") amt = d.codTransferred;
+                if (activeTab === "cod_pending") amt = d.codPending;
+                if (activeTab === "prepaid_hand") amt = d.prepaidHand;
+                if (activeTab === "prepaid_transferred") amt = d.prepaidTransferred;
+
+                return [
+                  <div key="1" className="flex items-center gap-3">
+                    <div className="bg-slate-100 p-2 rounded-full"><Wallet size={16} className="text-slate-500"/></div>
+                    <span className="font-bold text-[#0d2c54]">{d.name}</span>
+                  </div>,
+                  <span key="2" className="text-slate-600">{d.branch}</span>,
+                  <span key="3" className="font-black text-emerald-600">{formatMMK(amt)}</span>,
+                  <span key="4" className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-[10px] font-black uppercase">Active</span>,
+                  <button key="5" className="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-2 rounded-lg hover:bg-blue-100">Review</button>
+                ];
+              })}
+            />
+          </Panel>
+        )}
       </div>
     </div>
   );
 }
 
-function StatCard({
-  icon: Icon,
-  title,
-  value,
-  subtitle,
-}: {
-  icon: React.ComponentType<{ size?: number; className?: string }>;
-  title: string;
-  value: string;
-  subtitle: string;
-}) {
+// --- SUBCOMPONENTS ---
+
+function LanguageToggle({ value, onChange }: { value: UiLanguage; onChange: (value: UiLanguage) => void }) {
+  const items: Array<{ value: UiLanguage; label: string }> = [
+    { value: "en", label: "EN" },
+    { value: "my", label: "မြန်မာ" },
+    { value: "both", label: "EN + မြန်မာ" },
+  ];
+
   return (
-    <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-      <Icon size={24} className="text-[#0d2c54]" />
-      <p className="mt-5 text-xs font-black uppercase tracking-[0.2em] text-slate-400">{title}</p>
-      <p className="mt-4 text-3xl font-black text-[#0d2c54]">{value}</p>
-      <p className="mt-2 text-sm text-slate-500">{subtitle}</p>
+    <div className="inline-flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
+      <div className="flex items-center gap-2 rounded-xl bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-500">
+        <Globe2 size={14} />
+        <span>Language</span>
+      </div>
+      {items.map((item) => (
+        <button
+          key={item.value}
+          onClick={() => onChange(item.value)}
+          className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${item.value === value ? "bg-[#0d2c54] text-white shadow" : "bg-slate-50 text-slate-600 hover:bg-slate-100"}`}
+        >
+          {item.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function FilterInput({ label, placeholder }: { label: string, placeholder: string }) {
+  return (
+    <div>
+      <label className="block text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2">{label}</label>
+      <input 
+        placeholder={placeholder}
+        className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 outline-none focus:border-[#0d2c54] focus:bg-white"
+      />
     </div>
   );
 }
 
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-      <h2 className="text-lg font-black text-[#0d2c54]">{title}</h2>
+    <div className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm">
+      <h2 className="text-lg font-black text-[#0d2c54] border-b border-slate-100 pb-4">{title}</h2>
       <div className="mt-4">{children}</div>
     </div>
   );
 }
 
-function DataTable({
-  headers,
-  rows,
-  emptyText,
-}: {
-  headers: string[];
-  rows: React.ReactNode[][];
-  emptyText: string;
-}) {
+function DataTable({ headers, rows, emptyText = "No records found." }: { headers: string[], rows: React.ReactNode[][], emptyText?: string }) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200">
-      <table className="min-w-full text-sm">
-        <thead className="bg-slate-50 text-left text-slate-500">
-          <tr>
-            {headers.map((header) => (
-              <th key={header} className="px-4 py-3 font-black">{header}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.length === 0 ? (
+    <div className="overflow-hidden rounded-[24px] border border-slate-200">
+      <div className="overflow-x-auto">
+        <table className="min-w-full text-sm">
+          <thead className="bg-slate-50 text-left text-slate-500">
             <tr>
-              <td colSpan={headers.length} className="px-4 py-8 text-center text-slate-400">
-                {emptyText}
-              </td>
+              {headers.map((header) => (
+                <th key={header} className="px-5 py-4 text-xs font-black uppercase tracking-wider">{header}</th>
+              ))}
             </tr>
-          ) : (
-            rows.map((row, idx) => (
-              <tr key={idx} className="border-t border-slate-100">
-                {row.map((cell, cellIdx) => (
-                  <td key={cellIdx} className="px-4 py-3">{cell}</td>
-                ))}
+          </thead>
+          <tbody className="bg-white">
+            {rows.length === 0 ? (
+              <tr>
+                <td colSpan={headers.length} className="px-5 py-12 text-center text-slate-400 font-semibold">
+                  {emptyText}
+                </td>
               </tr>
-            ))
-          )}
-        </tbody>
-      </table>
+            ) : (
+              rows.map((row, idx) => (
+                <tr key={idx} className="border-t border-slate-100 hover:bg-slate-50/50 transition">
+                  {row.map((cell, cellIdx) => (
+                    <td key={cellIdx} className="px-5 py-4 align-middle">{cell}</td>
+                  ))}
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

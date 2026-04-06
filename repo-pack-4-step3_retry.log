@@ -1,0 +1,155 @@
++ set -Eeuo pipefail
++ trap 'echo ""; echo "FAILED at line $LINENO"; exit 1' ERR
++ FRONTEND_DIR=apps/admin-web
++ mkdir -p apps/api/src/common/middleware
++ mkdir -p apps/api/src/common/interceptors
++ mkdir -p apps/api/src/modules/health
++ mkdir -p apps/api/src/queues/workers
++ mkdir -p apps/api/prisma
++ mkdir -p .github/workflows
++ mkdir -p infra
++ mkdir -p apps/admin-web/src/hooks
++ echo 'Writing middleware and logging...'
+Writing middleware and logging...
++ write_file apps/api/src/common/middleware/correlation-id.middleware.ts
++ local path=apps/api/src/common/middleware/correlation-id.middleware.ts
+++ dirname apps/api/src/common/middleware/correlation-id.middleware.ts
++ mkdir -p apps/api/src/common/middleware
++ cat
++ write_file apps/api/src/common/interceptors/request-logging.interceptor.ts
++ local path=apps/api/src/common/interceptors/request-logging.interceptor.ts
+++ dirname apps/api/src/common/interceptors/request-logging.interceptor.ts
++ mkdir -p apps/api/src/common/interceptors
++ cat
++ echo 'Writing health module...'
+Writing health module...
++ write_file apps/api/src/modules/health/health.module.ts
++ local path=apps/api/src/modules/health/health.module.ts
+++ dirname apps/api/src/modules/health/health.module.ts
++ mkdir -p apps/api/src/modules/health
++ cat
++ write_file apps/api/src/modules/health/health.service.ts
++ local path=apps/api/src/modules/health/health.service.ts
+++ dirname apps/api/src/modules/health/health.service.ts
++ mkdir -p apps/api/src/modules/health
++ cat
++ write_file apps/api/src/modules/health/health.controller.ts
++ local path=apps/api/src/modules/health/health.controller.ts
+++ dirname apps/api/src/modules/health/health.controller.ts
++ mkdir -p apps/api/src/modules/health
++ cat
++ echo 'Writing queues...'
+Writing queues...
++ write_file apps/api/src/queues/queues.module.ts
++ local path=apps/api/src/queues/queues.module.ts
+++ dirname apps/api/src/queues/queues.module.ts
++ mkdir -p apps/api/src/queues
++ cat
++ write_file apps/api/src/queues/queue-publisher.service.ts
++ local path=apps/api/src/queues/queue-publisher.service.ts
+++ dirname apps/api/src/queues/queue-publisher.service.ts
++ mkdir -p apps/api/src/queues
++ cat
++ write_file apps/api/src/queues/workers/label-jobs.processor.ts
++ local path=apps/api/src/queues/workers/label-jobs.processor.ts
+++ dirname apps/api/src/queues/workers/label-jobs.processor.ts
++ mkdir -p apps/api/src/queues/workers
++ cat
++ write_file apps/api/src/queues/workers/notifications-jobs.processor.ts
++ local path=apps/api/src/queues/workers/notifications-jobs.processor.ts
+++ dirname apps/api/src/queues/workers/notifications-jobs.processor.ts
++ mkdir -p apps/api/src/queues/workers
++ cat
++ echo 'Writing seed...'
+Writing seed...
++ backup_if_exists apps/api/prisma/seed.ts
++ local f=apps/api/prisma/seed.ts
++ '[' -f apps/api/prisma/seed.ts ']'
+++ date +%Y%m%d-%H%M%S
++ cp apps/api/prisma/seed.ts apps/api/prisma/seed.ts.bak.20260406-215805
++ write_file apps/api/prisma/seed.ts
++ local path=apps/api/prisma/seed.ts
+++ dirname apps/api/prisma/seed.ts
++ mkdir -p apps/api/prisma
++ cat
++ echo 'Patching package.json...'
+Patching package.json...
++ backup_if_exists apps/api/package.json
++ local f=apps/api/package.json
++ '[' -f apps/api/package.json ']'
+++ date +%Y%m%d-%H%M%S
++ cp apps/api/package.json apps/api/package.json.bak.20260406-215806
++ node
+Updated apps/api/package.json
++ echo 'Writing app.module.ts and main.ts...'
+Writing app.module.ts and main.ts...
++ backup_if_exists apps/api/src/app.module.ts
++ local f=apps/api/src/app.module.ts
++ '[' -f apps/api/src/app.module.ts ']'
+++ date +%Y%m%d-%H%M%S
++ cp apps/api/src/app.module.ts apps/api/src/app.module.ts.bak.20260406-215806
++ write_file apps/api/src/app.module.ts
++ local path=apps/api/src/app.module.ts
+++ dirname apps/api/src/app.module.ts
++ mkdir -p apps/api/src
++ cat
++ backup_if_exists apps/api/src/main.ts
++ local f=apps/api/src/main.ts
++ '[' -f apps/api/src/main.ts ']'
++ write_file apps/api/src/main.ts
++ local path=apps/api/src/main.ts
+++ dirname apps/api/src/main.ts
++ mkdir -p apps/api/src
++ cat
++ echo 'Writing Docker and CI...'
+Writing Docker and CI...
++ backup_if_exists apps/api/Dockerfile
++ local f=apps/api/Dockerfile
++ '[' -f apps/api/Dockerfile ']'
++ write_file apps/api/Dockerfile
++ local path=apps/api/Dockerfile
+++ dirname apps/api/Dockerfile
++ mkdir -p apps/api
++ cat
++ backup_if_exists apps/admin-web/Dockerfile
++ local f=apps/admin-web/Dockerfile
++ '[' -f apps/admin-web/Dockerfile ']'
++ write_file apps/admin-web/Dockerfile
++ local path=apps/admin-web/Dockerfile
+++ dirname apps/admin-web/Dockerfile
++ mkdir -p apps/admin-web
++ cat
++ write_file infra/docker-compose.prod.yml
++ local path=infra/docker-compose.prod.yml
+++ dirname infra/docker-compose.prod.yml
++ mkdir -p infra
++ cat
++ write_file .github/workflows/ci.yml
++ local path=.github/workflows/ci.yml
+++ dirname .github/workflows/ci.yml
++ mkdir -p .github/workflows
++ cat
++ echo 'Writing remaining frontend hooks...'
+Writing remaining frontend hooks...
++ write_file apps/admin-web/src/hooks/use-auth-me.ts
++ local path=apps/admin-web/src/hooks/use-auth-me.ts
+++ dirname apps/admin-web/src/hooks/use-auth-me.ts
++ mkdir -p apps/admin-web/src/hooks
++ cat
++ write_file apps/admin-web/src/hooks/use-rider-tasks.ts
++ local path=apps/admin-web/src/hooks/use-rider-tasks.ts
+++ dirname apps/admin-web/src/hooks/use-rider-tasks.ts
++ mkdir -p apps/admin-web/src/hooks
++ cat
++ write_file apps/admin-web/src/hooks/use-warehouse-exception-queue.ts
++ local path=apps/admin-web/src/hooks/use-warehouse-exception-queue.ts
+++ dirname apps/admin-web/src/hooks/use-warehouse-exception-queue.ts
++ mkdir -p apps/admin-web/src/hooks
++ cat
++ write_file apps/admin-web/src/hooks/use-employee-list.ts
++ local path=apps/admin-web/src/hooks/use-employee-list.ts
+++ dirname apps/admin-web/src/hooks/use-employee-list.ts
++ mkdir -p apps/admin-web/src/hooks
++ cat
++ echo 'Step 3 completed successfully.'
+Step 3 completed successfully.

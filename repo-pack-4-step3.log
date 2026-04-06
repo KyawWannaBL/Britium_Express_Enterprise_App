@@ -1,0 +1,107 @@
++ set -Eeuo pipefail
++ trap 'echo ""; echo "FAILED at line $LINENO"; exit 1' ERR
++ FRONTEND_DIR=apps/admin-web
++ mkdir -p apps/api/src/common/middleware
++ mkdir -p apps/api/src/common/interceptors
++ mkdir -p apps/api/src/modules/health
++ mkdir -p apps/api/src/queues/workers
++ mkdir -p apps/api/prisma
++ mkdir -p .github/workflows
++ mkdir -p infra
++ mkdir -p apps/admin-web/src/hooks
++ echo 'Writing middleware and logging...'
+Writing middleware and logging...
++ write_file apps/api/src/common/middleware/correlation-id.middleware.ts
++ local path=apps/api/src/common/middleware/correlation-id.middleware.ts
+++ dirname apps/api/src/common/middleware/correlation-id.middleware.ts
++ mkdir -p apps/api/src/common/middleware
++ cat
++ write_file apps/api/src/common/interceptors/request-logging.interceptor.ts
++ local path=apps/api/src/common/interceptors/request-logging.interceptor.ts
+++ dirname apps/api/src/common/interceptors/request-logging.interceptor.ts
++ mkdir -p apps/api/src/common/interceptors
++ cat
++ echo 'Writing health module...'
+Writing health module...
++ write_file apps/api/src/modules/health/health.module.ts
++ local path=apps/api/src/modules/health/health.module.ts
+++ dirname apps/api/src/modules/health/health.module.ts
++ mkdir -p apps/api/src/modules/health
++ cat
++ write_file apps/api/src/modules/health/health.service.ts
++ local path=apps/api/src/modules/health/health.service.ts
+++ dirname apps/api/src/modules/health/health.service.ts
++ mkdir -p apps/api/src/modules/health
++ cat
++ write_file apps/api/src/modules/health/health.controller.ts
++ local path=apps/api/src/modules/health/health.controller.ts
+++ dirname apps/api/src/modules/health/health.controller.ts
++ mkdir -p apps/api/src/modules/health
++ cat
++ echo 'Writing queues...'
+Writing queues...
++ write_file apps/api/src/queues/queues.module.ts
++ local path=apps/api/src/queues/queues.module.ts
+++ dirname apps/api/src/queues/queues.module.ts
++ mkdir -p apps/api/src/queues
++ cat
++ write_file apps/api/src/queues/queue-publisher.service.ts
++ local path=apps/api/src/queues/queue-publisher.service.ts
+++ dirname apps/api/src/queues/queue-publisher.service.ts
++ mkdir -p apps/api/src/queues
++ cat
++ write_file apps/api/src/queues/workers/label-jobs.processor.ts
++ local path=apps/api/src/queues/workers/label-jobs.processor.ts
+++ dirname apps/api/src/queues/workers/label-jobs.processor.ts
++ mkdir -p apps/api/src/queues/workers
++ cat
++ write_file apps/api/src/queues/workers/notifications-jobs.processor.ts
++ local path=apps/api/src/queues/workers/notifications-jobs.processor.ts
+++ dirname apps/api/src/queues/workers/notifications-jobs.processor.ts
++ mkdir -p apps/api/src/queues/workers
++ cat
++ echo 'Writing seed...'
+Writing seed...
++ backup_if_exists apps/api/prisma/seed.ts
++ local f=apps/api/prisma/seed.ts
++ '[' -f apps/api/prisma/seed.ts ']'
+++ date +%Y%m%d-%H%M%S
++ cp apps/api/prisma/seed.ts apps/api/prisma/seed.ts.bak.20260406-215532
++ write_file apps/api/prisma/seed.ts
++ local path=apps/api/prisma/seed.ts
+++ dirname apps/api/prisma/seed.ts
++ mkdir -p apps/api/prisma
++ cat
++ echo 'Patching package.json...'
+Patching package.json...
++ backup_if_exists apps/api/package.json
++ local f=apps/api/package.json
++ '[' -f apps/api/package.json ']'
++ node
+node:fs:449
+    return binding.readFileUtf8(path, stringToFlags(options.flag));
+                   ^
+
+Error: ENOENT: no such file or directory, open 'D:\Britium_Express_Enterprise_App\apps\api\package.json'
+    at Object.readFileSync (node:fs:449:20)
+    at [stdin]:3:27
+    at runScriptInThisContext (node:internal/vm:209:10)
+    at node:internal/process/execution:118:14
+    at [stdin]-wrapper:6:24
+    at runScript (node:internal/process/execution:101:62)
+    at evalScript (node:internal/process/execution:133:3)
+    at node:internal/main/eval_stdin:32:5
+    at Socket.<anonymous> (node:internal/process/execution:234:5)
+    at Socket.emit (node:events:536:35) {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'D:\\Britium_Express_Enterprise_App\\apps\\api\\package.json'
+}
+
+Node.js v20.19.6
+++ echo ''
+
+++ echo 'FAILED at line 600'
+FAILED at line 600
+++ exit 1

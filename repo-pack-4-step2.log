@@ -1,0 +1,114 @@
++ set -Eeuo pipefail
++ trap 'echo ""; echo "FAILED at line $LINENO"; exit 1' ERR
++ echo 'Creating module folders...'
+Creating module folders...
++ mkdir -p apps/api/src/modules/manifests
++ mkdir -p apps/api/src/modules/transfers
++ mkdir -p apps/api/src/modules/qr
++ mkdir -p apps/api/src/modules/labels
++ mkdir -p apps/api/src/modules/tamper-tags
++ mkdir -p apps/api/src/modules/devices
++ echo 'Writing manifests...'
+Writing manifests...
++ write_file apps/api/src/modules/manifests/manifests.module.ts
++ local path=apps/api/src/modules/manifests/manifests.module.ts
+++ dirname apps/api/src/modules/manifests/manifests.module.ts
++ mkdir -p apps/api/src/modules/manifests
++ cat
++ write_file apps/api/src/modules/manifests/manifests.service.ts
++ local path=apps/api/src/modules/manifests/manifests.service.ts
+++ dirname apps/api/src/modules/manifests/manifests.service.ts
++ mkdir -p apps/api/src/modules/manifests
++ cat
++ write_file apps/api/src/modules/manifests/manifests.controller.ts
++ local path=apps/api/src/modules/manifests/manifests.controller.ts
+++ dirname apps/api/src/modules/manifests/manifests.controller.ts
++ mkdir -p apps/api/src/modules/manifests
++ cat
++ echo 'Writing transfers...'
+Writing transfers...
++ write_file apps/api/src/modules/transfers/transfers.module.ts
++ local path=apps/api/src/modules/transfers/transfers.module.ts
+++ dirname apps/api/src/modules/transfers/transfers.module.ts
++ mkdir -p apps/api/src/modules/transfers
++ cat
++ write_file apps/api/src/modules/transfers/transfers.service.ts
++ local path=apps/api/src/modules/transfers/transfers.service.ts
+++ dirname apps/api/src/modules/transfers/transfers.service.ts
++ mkdir -p apps/api/src/modules/transfers
++ cat
++ write_file apps/api/src/modules/transfers/transfers.controller.ts
++ local path=apps/api/src/modules/transfers/transfers.controller.ts
+++ dirname apps/api/src/modules/transfers/transfers.controller.ts
++ mkdir -p apps/api/src/modules/transfers
++ cat
++ echo 'Writing qr...'
+Writing qr...
++ write_file apps/api/src/modules/qr/qr.module.ts
++ local path=apps/api/src/modules/qr/qr.module.ts
+++ dirname apps/api/src/modules/qr/qr.module.ts
++ mkdir -p apps/api/src/modules/qr
++ cat
++ write_file apps/api/src/modules/qr/qr.service.ts
++ local path=apps/api/src/modules/qr/qr.service.ts
+++ dirname apps/api/src/modules/qr/qr.service.ts
++ mkdir -p apps/api/src/modules/qr
++ cat
++ write_file apps/api/src/modules/qr/qr.controller.ts
++ local path=apps/api/src/modules/qr/qr.controller.ts
+++ dirname apps/api/src/modules/qr/qr.controller.ts
++ mkdir -p apps/api/src/modules/qr
++ cat
++ echo 'Writing labels...'
+Writing labels...
++ write_file apps/api/src/modules/labels/labels.module.ts
++ local path=apps/api/src/modules/labels/labels.module.ts
+++ dirname apps/api/src/modules/labels/labels.module.ts
++ mkdir -p apps/api/src/modules/labels
++ cat
++ write_file apps/api/src/modules/labels/labels.service.ts
++ local path=apps/api/src/modules/labels/labels.service.ts
+++ dirname apps/api/src/modules/labels/labels.service.ts
++ mkdir -p apps/api/src/modules/labels
++ cat
++ write_file apps/api/src/modules/labels/labels.controller.ts
++ local path=apps/api/src/modules/labels/labels.controller.ts
+++ dirname apps/api/src/modules/labels/labels.controller.ts
++ mkdir -p apps/api/src/modules/labels
++ cat
++ echo 'Writing tamper-tags...'
+Writing tamper-tags...
++ write_file apps/api/src/modules/tamper-tags/tamper-tags.module.ts
++ local path=apps/api/src/modules/tamper-tags/tamper-tags.module.ts
+++ dirname apps/api/src/modules/tamper-tags/tamper-tags.module.ts
++ mkdir -p apps/api/src/modules/tamper-tags
++ cat
++ write_file apps/api/src/modules/tamper-tags/tamper-tags.service.ts
++ local path=apps/api/src/modules/tamper-tags/tamper-tags.service.ts
+++ dirname apps/api/src/modules/tamper-tags/tamper-tags.service.ts
++ mkdir -p apps/api/src/modules/tamper-tags
++ cat
++ write_file apps/api/src/modules/tamper-tags/tamper-tags.controller.ts
++ local path=apps/api/src/modules/tamper-tags/tamper-tags.controller.ts
+++ dirname apps/api/src/modules/tamper-tags/tamper-tags.controller.ts
++ mkdir -p apps/api/src/modules/tamper-tags
++ cat
++ echo 'Writing devices...'
+Writing devices...
++ write_file apps/api/src/modules/devices/devices.module.ts
++ local path=apps/api/src/modules/devices/devices.module.ts
+++ dirname apps/api/src/modules/devices/devices.module.ts
++ mkdir -p apps/api/src/modules/devices
++ cat
++ write_file apps/api/src/modules/devices/devices.service.ts
++ local path=apps/api/src/modules/devices/devices.service.ts
+++ dirname apps/api/src/modules/devices/devices.service.ts
++ mkdir -p apps/api/src/modules/devices
++ cat
++ write_file apps/api/src/modules/devices/devices.controller.ts
++ local path=apps/api/src/modules/devices/devices.controller.ts
+++ dirname apps/api/src/modules/devices/devices.controller.ts
++ mkdir -p apps/api/src/modules/devices
++ cat
++ echo 'Step 2 completed successfully.'
+Step 2 completed successfully.

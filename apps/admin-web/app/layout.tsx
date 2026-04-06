@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import Providers from "./providers";
 import ClientLayoutWrapper from "@/components/ClientLayoutWrapper";
 
 export const metadata: Metadata = {
@@ -7,14 +8,17 @@ export const metadata: Metadata = {
   description: "Enterprise Logistics Console",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <html lang="en">
-      <body className="antialiased">
-        {/* The wrapper decides whether to show the Sidebar or not based on the URL */}
-        <ClientLayoutWrapper>
-          {children}
-        </ClientLayoutWrapper>
+    <html lang="en" suppressHydrationWarning>
+      <body className="app-shell">
+        <Providers>
+          <ClientLayoutWrapper>{children}</ClientLayoutWrapper>
+        </Providers>
       </body>
     </html>
   );

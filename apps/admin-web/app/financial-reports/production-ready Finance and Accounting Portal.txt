@@ -1,0 +1,652 @@
+Create a production-ready Finance and Accounting Portal for a logistics and delivery platform.
+This portal must combine the current Financial Center and Financial Reports into one unified Finance & Accounting Portal, not as separate pages, but as one connected system with shared navigation, shared filters, shared reporting context, and proper role-based access control.
+
+Core goal
+
+Build a flawless enterprise-grade finance portal that supports:
+
+finance operations
+accounting workflows
+multi-role financial processes
+fraud prevention
+real-time monitoring
+approvals and controls
+auditability
+financial reporting
+exportable reports
+branch and zone based filtering
+bilingual English + Myanmar (Burmese) support
+
+The result must feel like a real production ERP-grade finance workspace, not a prototype.
+
+Important system requirement
+
+The current code already contains:
+
+deliveryman accounting tabs for COD on hand, transferred COD, pending COD, prepaid on hand, and prepaid transferred
+finance modules for account balance, account title list, simple transaction, journal voucher entry/list, cash voucher entry/list, general ledger, cash book summary, and financial statement suite
+reporting tabs for cash book summary, journal summary, trial balance, income statement, balance sheet, and profit & loss
+shared bilingual filters for date, branch, zone, and search
+export expectations for CSV, XLSX, and PDF
+
+Preserve these core capabilities, but redesign them into one cohesive Finance and Accounting Portal with proper architecture, workflow, permissions, fraud controls, and real-time monitoring.
+
+Required user roles
+
+Support at least these two main roles:
+
+1. Financial Data Entry Account
+
+This role is for operational accounting staff who create and submit transactions.
+
+Permissions:
+
+create simple transactions
+create journal vouchers
+create cash vouchers
+upload supporting evidence and attachments
+save drafts
+edit own draft records before approval
+search and view permitted records
+submit entries for review / approval
+view status of submitted entries
+view limited operational dashboards relevant to their scope
+cannot approve their own entries
+cannot post to ledger directly
+cannot reverse approved transactions
+cannot access full sensitive management analytics unless authorized
+2. Financial Manager Account
+
+This role is for reviewers, approvers, controllers, and finance leaders.
+
+Permissions:
+
+view all finance dashboards
+review and approve/reject entries
+post approved transactions
+reverse or adjust under strict controls
+manage approval queues
+review fraud alerts
+monitor branch and zone financial activities
+view all reports and statements
+export reports
+manage thresholds and approval policies
+lock periods / close books
+access audit trails
+supervise reconciliation and exception queues
+Role-based access control requirements
+Implement real RBAC, not mocked access
+Enforce screen-level, module-level, action-level, and data-level permissions
+Prevent self-approval
+Enforce maker-checker workflow
+Support branch-based and zone-based visibility limits
+Support approval limits by amount, voucher type, branch, and account category
+Support period lock and closed-period restrictions
+Log every sensitive action
+Portal structure
+1. Unified Finance & Accounting Dashboard
+
+Create a premium overview dashboard as the entry point of the portal.
+
+Show KPI cards such as:
+total cash on hand
+total COD on hand
+total COD transferred
+total pending COD collection
+merchant prepaid on hand
+merchant prepaid transferred
+unposted vouchers
+pending approvals
+overdue reconciliations
+suspicious transactions
+net profit
+accounts payable
+branch cash position
+current period revenue
+current period expense
+Include widgets for:
+approval queue summary
+fraud alerts summary
+branch performance snapshot
+cash flow trend
+live transaction monitoring feed
+recent financial activities
+top exception categories
+report shortcut cards
+2. Unified Left Navigation / Module Navigation
+
+Create a clean enterprise sidebar or module navigation containing:
+
+Finance Operations
+Dashboard
+Deliveryman Accounting
+COD Monitoring
+Merchant Prepaid Monitoring
+Account Balance
+Chart of Accounts
+Transactions
+Simple Transaction Entry
+Journal Voucher Entry
+Cash Voucher Entry
+Voucher Drafts
+Submitted Vouchers
+Approved / Posted Vouchers
+Reversal / Adjustment Requests
+Accounting Records
+Journal Voucher List
+Cash Voucher List
+General Ledger
+Account Ledger Detail
+Cash Book Summary
+Reports & Statements
+Journal Summary
+Trial Balance
+Income Statement
+Balance Sheet
+Profit and Loss
+Cash Book Summary
+Branch Financial Summary
+Zone Financial Summary
+Reconciliation Reports
+Fraud / Exception Reports
+Controls & Monitoring
+Approval Queue
+Fraud Center
+Real-Time Monitoring
+Audit Trail
+Period Closing
+System Rules / Thresholds
+3. Deliveryman Accounting Workspace
+
+Preserve and modernize the current COD/prepaid tracking area.
+
+Include tabs or filtered views for:
+COD on hand / collected
+COD already transferred
+COD to be collected
+Merchant prepaid on hand
+Merchant prepaid transferred
+Show columns such as:
+deliveryman name
+branch
+zone
+amount
+aging / outstanding days
+latest transfer date
+status
+exception status
+review action
+Add controls for:
+search
+date range
+branch
+zone
+deliveryman
+amount threshold
+export
+drill-down detail modal
+Add fraud controls:
+highlight unusually high COD on hand
+show delayed transfer warnings
+detect repeated unresolved COD balances
+flag negative or invalid prepaid balances
+show trend versus historical norm
+4. Chart of Accounts / Account Master
+
+Create a full chart-of-accounts management screen.
+
+Include:
+account code
+account title
+account type
+account group
+account class
+normal balance
+parent account
+active/inactive status
+remark
+created by
+updated by
+updated date
+Functions:
+add account
+edit account
+deactivate account
+search and filter
+import/export list
+prevent duplicate account codes
+restrict edits for protected system accounts
+5. Transaction Entry Workflows
+
+Create polished enterprise data entry workflows.
+
+A. Simple Transaction Entry
+
+Include:
+
+transaction date
+branch
+zone
+merchant
+customer if applicable
+account selection
+transaction type
+amount
+description
+reference number
+notes
+attachment upload
+evidence photos
+draft / submit buttons
+B. Journal Voucher Entry
+
+Include:
+
+voucher number
+voucher date
+branch
+zone
+merchant
+customer
+narrative
+debit and credit account lines
+line item add/remove
+subtotal and total
+attachment upload
+reviewer assignment
+draft / submit buttons
+C. Cash Voucher Entry
+
+Include:
+
+voucher number
+voucher date
+branch
+zone
+received in account
+received from account
+amount
+payment method
+bank/cash indicator
+supporting evidence
+notes
+draft / submit buttons
+Validation requirements
+debit must equal credit before submission
+no posting to inactive accounts
+no future posting if rules disallow it
+no posting to locked periods
+required attachment for sensitive transactions
+required remarks for manual adjustments
+duplicate reference detection
+duplicate voucher number prevention
+threshold-based mandatory review
+6. Voucher Lists and Record Browsing
+
+Create robust list screens for:
+
+journal voucher list
+cash voucher list
+simple transaction list
+drafts
+submitted
+approved
+rejected
+posted
+reversed
+Each list should support:
+date range
+branch
+zone
+account
+merchant/customer
+voucher number
+status
+amount range
+creator
+approver
+keyword search
+export
+pagination
+row click to detail drawer
+Detail drawer / modal should show:
+full transaction metadata
+attachments
+approval history
+audit events
+ledger impact preview
+comments / review notes
+7. General Ledger and Account Balances
+
+Create full accounting inquiry screens.
+
+Include:
+general ledger list
+account balance summary
+account detail drilldown
+running balance
+opening balance
+period debit
+period credit
+closing balance
+branch and zone view
+date filtered ledger detail
+Add:
+print/export
+linked source voucher reference
+linked journal detail
+posted/unposted state
+reconciliation marker
+8. Financial Reports Suite
+
+Merge the current separate reporting page into this same portal.
+
+Include the following report tabs:
+Cash Book Summary
+Journal Summary
+Trial Balance
+Income Statement
+Balance Sheet
+Profit and Loss
+Shared report filters:
+start date
+end date
+branch
+zone
+account
+search keyword
+currency if needed
+compare period
+export format
+Report requirements
+Cash Book Summary
+opening balance
+closing balance
+total received
+total payments
+account-level breakdown
+Journal Summary
+account description
+debit
+credit
+totals
+Trial Balance
+account code
+account head
+account description
+opening debit/credit
+period debit/credit
+closing debit/credit
+balance validation check
+Income Statement
+income categories
+expense categories
+gross profit
+operating profit
+net profit
+period comparison
+Balance Sheet
+assets
+liabilities
+equity
+totals
+balance validation
+Profit and Loss
+line descriptions
+current period amount
+cumulative year-to-date
+summary totals
+Reporting UX expectations
+beautiful tables
+report summary cards
+export buttons
+print-friendly layout
+clear empty states
+branch/zone scoped reporting
+manager-only access to sensitive reports where required
+9. Approval Workflow Center
+
+Create a dedicated manager-facing approval center.
+
+Include queues for:
+pending voucher approvals
+high-value transaction approvals
+reversal approvals
+exception approvals
+suspicious transaction review
+Each approval item should show:
+voucher/reference
+created by
+branch/zone
+type
+amount
+risk score
+reason flagged
+submitted timestamp
+SLA timer
+approve / reject / return for correction actions
+Approval rules
+enforce maker-checker separation
+multi-level approval for high-value items
+route by amount thresholds
+route by transaction type
+require comments on rejection
+require second approval for reversals and adjustments
+notify users on decision
+10. Fraud Prevention and Internal Controls
+
+This is mandatory.
+
+Build a dedicated Fraud & Controls Center with:
+suspicious transaction alerts
+duplicate voucher detection
+unusual amount detection
+unusual branch activity detection
+duplicate attachment/reference detection
+deliveryman COD aging alerts
+missing evidence alerts
+manual override tracking
+late posting detection
+after-hours transaction alerts
+repeated reversal pattern alerts
+policy breach alerts
+Preventive controls
+maker-checker
+locked periods
+approval thresholds
+mandatory evidence for defined cases
+immutable audit log
+branch scope enforcement
+role-based field restrictions
+no self-approval
+no delete after posting, only reversal with trace
+version history for edits
+OTP / MFA for sensitive approvals if possible
+Monitoring requirements
+real-time alert feed
+alert severity levels
+case status
+assigned reviewer
+investigation notes
+resolution action history
+11. Real-Time Monitoring Center
+
+Create a live monitoring screen for finance managers.
+
+Include real-time widgets for:
+live incoming transactions
+pending postings
+branch cash position
+COD risk heatmap
+unapproved voucher queue
+aging of untransferred COD
+unbalanced journal attempts
+suspicious transaction stream
+exceptions by branch
+reconciliation failures
+today’s receipts vs payments
+today’s high-risk alerts
+Make it feel operational:
+live refresh
+timestamped updates
+status colors
+alert drill-down
+acknowledgement workflow
+12. Audit Trail and Compliance
+
+Create a complete audit trail screen.
+
+Log:
+create
+edit
+submit
+approve
+reject
+post
+reverse
+export
+print
+login-sensitive actions
+rule changes
+threshold changes
+Show:
+user
+role
+action
+timestamp
+record reference
+before/after values
+IP/device/session if available
+reason/comment
+Requirements
+immutable history
+filterable
+exportable
+searchable
+manager-only or auditor-only visibility where needed
+13. Period Closing and Financial Controls
+
+Create a period-end control area.
+
+Include:
+month-end close checklist
+open period / closed period status
+close period action
+reopen period action with approval
+outstanding approvals count
+unresolved exceptions count
+pending reconciliations count
+required reports checklist
+lock posting after close
+manager notes
+14. Export and Reporting Delivery
+
+Support:
+
+CSV export
+XLSX export
+PDF export
+print view
+manager report packs
+branch report packs
+scheduled report generation if possible
+download history
+15. Bilingual requirement
+
+The entire portal must be fully bilingual:
+
+English
+Myanmar (Burmese)
+
+All key UI text must support bilingual display:
+
+module names
+field labels
+buttons
+alerts
+empty states
+report names
+approval statuses
+fraud alerts
+table headers
+helper text
+
+Support language modes:
+
+English only
+Myanmar only
+English + Myanmar together
+16. UI and design requirements
+
+The portal must be:
+
+modern
+elegant
+enterprise-grade
+highly trustworthy
+visually premium
+operationally efficient
+Styling expectations
+premium cards
+polished tables
+elegant filters
+modern dashboards
+subtle shadows
+refined spacing
+strong hierarchy
+clean typography
+beautiful but professional charts
+smooth transitions
+tasteful motion with Framer Motion
+responsive layout
+accessible interactions
+States to include
+loading
+empty
+success
+error
+warning
+flagged / suspicious
+locked / restricted
+under review
+approved / rejected / posted
+17. Technical expectations
+Use React
+Use Tailwind CSS
+Use Framer Motion
+Use reusable components
+Use clean module architecture
+Use proper TypeScript types
+Make it production-ready
+Avoid mock-only logic for critical controls
+Do not hardcode access to true
+Build real role-based gating
+Keep code maintainable and scalable
+18. Output requirement
+
+Return a full production-ready React implementation of the unified Finance & Accounting Portal that combines:
+
+current financial center
+current financial reports
+
+into one seamless portal.
+
+The portal must support:
+
+Financial Data Entry account
+Financial Manager account
+
+and must include:
+
+operations
+accounting workflows
+approvals
+fraud controls
+real-time monitoring
+audit trail
+financial reports
+exports
+bilingual UI
+enterprise-grade UX/UI
+
+Do not generate a simple mockup. Generate a realistic, production-grade finance platform.

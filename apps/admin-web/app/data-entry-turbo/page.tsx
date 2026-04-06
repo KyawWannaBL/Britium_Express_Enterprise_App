@@ -270,8 +270,7 @@ const DEMO_RECORDS: DataEntryRecord[] = [
   },
 ];
 
-// Ensure SYS role has access
-const HEAD_OFFICE_ONLY_ROLES = ["SYS", "SUPER_ADMIN", "ADMIN", "SUPERVISOR", "DATA_ENTRY", "DATA_ENTRY_STAFF"];
+const HEAD_OFFICE_ONLY_ROLES = ["SUPER_ADMIN", "ADMIN", "SUPERVISOR", "DATA_ENTRY", "DATA_ENTRY_STAFF"];
 
 function t(label: UiLanguage, en: string, my: string) {
   if (label === "en") return en;
@@ -312,14 +311,18 @@ function getCurrentUser(auth: unknown): AuthUser {
 }
 
 function hasSubmittedEditAuthority(user: AuthUser) {
-  // Force allow editing for local development
-  return true;
+  const role = (user.role ?? "").toUpperCase();
+  const perms = (user.permissions ?? []).map((item) => item.toUpperCase());
+  if (role === "SUPER_ADMIN") return true;
+  if (role === "ADMIN" && perms.includes("DATA_ENTRY_EDIT_SUBMITTED")) return true;
+  return false;
 }
 
 function canAccessDataEntry(user: AuthUser) {
-  // Force allow access to the page for local development
-  return true;
+  const role = (user.role ?? "").toUpperCase();
+  return HEAD_OFFICE_ONLY_ROLES.includes(role) && (user.branchType ?? "HEAD_OFFICE") === "HEAD_OFFICE";
 }
+
 async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, {
     ...init,

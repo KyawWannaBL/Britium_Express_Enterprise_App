@@ -1,0 +1,35 @@
+import { Module } from "@nestjs/common";
+import { APP_FILTER, APP_INTERCEPTOR } from "@nestjs/core";
+import { ConfigModule } from "@nestjs/config";
+import { PrismaModule } from "./prisma/prisma.module";
+import { RedisModule } from "./integrations/redis/redis.module";
+import { AuditLogInterceptor } from "./common/interceptors/audit-log.interceptor";
+import { HttpExceptionFilter } from "./common/filters/http-exception.filter";
+import { AuthModule } from "./modules/auth/auth.module";
+import { UsersModule } from "./modules/users/users.module";
+import { RolesModule } from "./modules/roles/roles.module";
+import { BranchesModule } from "./modules/branches/branches.module";
+import { ShipmentsModule } from "./modules/shipments/shipments.module";
+import { AttachmentsModule } from "./modules/attachments/attachments.module";
+import { NotificationsModule } from "./modules/notifications/notifications.module";
+import { TasksModule } from "./modules/tasks/tasks.module";
+import { DeliveriesModule } from "./modules/deliveries/deliveries.module";
+import { WarehousesModule } from "./modules/warehouses/warehouses.module";
+import { DataEntryModule } from "./modules/data-entry/data-entry.module";
+import { EmployeesModule } from "./modules/employees/employees.module";
+import { AttendanceModule } from "./modules/attendance/attendance.module";
+import { LeaveRequestsModule } from "./modules/leave-requests/leave-requests.module";
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }), PrismaModule, RedisModule, AuthModule,
+    UsersModule, RolesModule, BranchesModule, ShipmentsModule, AttachmentsModule,
+    NotificationsModule, TasksModule, DeliveriesModule, WarehousesModule,
+    DataEntryModule, EmployeesModule, AttendanceModule, LeaveRequestsModule,
+  ],
+  providers: [
+    { provide: APP_INTERCEPTOR, useClass: AuditLogInterceptor },
+    { provide: APP_FILTER, useClass: HttpExceptionFilter },
+  ],
+})
+export class AppModule {}

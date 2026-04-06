@@ -1,0 +1,75 @@
++ set -Eeuo pipefail
++ trap 'echo ""; echo "FAILED at line $LINENO"; exit 1' ERR
++ echo 'Using admin frontend paths...'
+Using admin frontend paths...
++ FRONTEND_DIR=apps/admin-web
++ mkdir -p apps/api/src/integrations/s3
++ mkdir -p apps/api/src/modules/uploads/dto
++ mkdir -p apps/api/src/modules/uploads
++ mkdir -p apps/api/src/modules/supervisor
++ mkdir -p apps/admin-web/src/hooks
++ echo 'Writing S3 integration...'
+Writing S3 integration...
++ write_file apps/api/src/integrations/s3/s3.module.ts
++ local path=apps/api/src/integrations/s3/s3.module.ts
+++ dirname apps/api/src/integrations/s3/s3.module.ts
++ mkdir -p apps/api/src/integrations/s3
++ cat
++ write_file apps/api/src/integrations/s3/s3.service.ts
++ local path=apps/api/src/integrations/s3/s3.service.ts
+++ dirname apps/api/src/integrations/s3/s3.service.ts
++ mkdir -p apps/api/src/integrations/s3
++ cat
++ echo 'Writing uploads module...'
+Writing uploads module...
++ write_file apps/api/src/modules/uploads/dto/create-signed-upload.dto.ts
++ local path=apps/api/src/modules/uploads/dto/create-signed-upload.dto.ts
+++ dirname apps/api/src/modules/uploads/dto/create-signed-upload.dto.ts
++ mkdir -p apps/api/src/modules/uploads/dto
++ cat
++ write_file apps/api/src/modules/uploads/uploads.module.ts
++ local path=apps/api/src/modules/uploads/uploads.module.ts
+++ dirname apps/api/src/modules/uploads/uploads.module.ts
++ mkdir -p apps/api/src/modules/uploads
++ cat
++ write_file apps/api/src/modules/uploads/uploads.service.ts
++ local path=apps/api/src/modules/uploads/uploads.service.ts
+++ dirname apps/api/src/modules/uploads/uploads.service.ts
++ mkdir -p apps/api/src/modules/uploads
++ cat
++ write_file apps/api/src/modules/uploads/uploads.controller.ts
++ local path=apps/api/src/modules/uploads/uploads.controller.ts
+++ dirname apps/api/src/modules/uploads/uploads.controller.ts
++ mkdir -p apps/api/src/modules/uploads
++ cat
++ echo 'Writing supervisor module...'
+Writing supervisor module...
++ write_file apps/api/src/modules/supervisor/supervisor.module.ts
++ local path=apps/api/src/modules/supervisor/supervisor.module.ts
+++ dirname apps/api/src/modules/supervisor/supervisor.module.ts
++ mkdir -p apps/api/src/modules/supervisor
++ cat
++ write_file apps/api/src/modules/supervisor/supervisor.service.ts
++ local path=apps/api/src/modules/supervisor/supervisor.service.ts
+++ dirname apps/api/src/modules/supervisor/supervisor.service.ts
++ mkdir -p apps/api/src/modules/supervisor
++ cat
++ write_file apps/api/src/modules/supervisor/supervisor.controller.ts
++ local path=apps/api/src/modules/supervisor/supervisor.controller.ts
+++ dirname apps/api/src/modules/supervisor/supervisor.controller.ts
++ mkdir -p apps/api/src/modules/supervisor
++ cat
++ echo 'Writing frontend hooks...'
+Writing frontend hooks...
++ write_file apps/admin-web/src/hooks/use-supervisor-dashboard.ts
++ local path=apps/admin-web/src/hooks/use-supervisor-dashboard.ts
+++ dirname apps/admin-web/src/hooks/use-supervisor-dashboard.ts
++ mkdir -p apps/admin-web/src/hooks
++ cat
++ write_file apps/admin-web/src/hooks/use-signed-upload.ts
++ local path=apps/admin-web/src/hooks/use-signed-upload.ts
+++ dirname apps/admin-web/src/hooks/use-signed-upload.ts
++ mkdir -p apps/admin-web/src/hooks
++ cat
++ echo 'Step 1 completed successfully.'
+Step 1 completed successfully.
