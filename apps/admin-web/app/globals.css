@@ -1,173 +1,128 @@
-@import "tailwindcss";
-
-@plugin "tailwindcss-animate";
-
-@custom-variant dark (&:is(.dark *));
-
-@theme {
-  /* Typography */
-  --font-sans: var(--font-en), var(--font-my), "Pyidaungsu", "Noto Sans Myanmar", sans-serif;
-  
-  /* Color Mapping - Ensures utility classes like bg-primary or text-success work */
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-
-  --color-success: var(--success);
-  --color-warning: var(--warning);
-  --color-danger: var(--danger);
-
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  
-  --color-border: var(--border);
-  --color-input: var(--input);
-
-  /* Spacing & Radius */
-  --radius-xl: calc(var(--radius) + 4px);
-  --radius-2xl: calc(var(--radius) + 12px);
-  --radius-3xl: calc(var(--radius) + 20px);
-
-  /* Elevation System */
-  --shadow-premium: 0 10px 30px -10px rgba(13, 44, 84, 0.1);
-  --shadow-elevated: 0 20px 40px -15px rgba(13, 44, 84, 0.15);
-}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 :root {
-  /* Enterprise Slate & Azure Palette */
-  --background: #f8fafc;
-  --foreground: #0f172a;
-  
-  --primary: #0d2c54;
-  --primary-foreground: #ffffff;
-  
-  --secondary: #f1f5f9;
-  --secondary-foreground: #1e293b;
-  
-  --accent: #ffd700;
-  --accent-foreground: #0d2c54;
-  
-  --success: #10b981;
-  --warning: #f59e0b;
-  --danger: #ef4444;
-
-  --card: rgba(255, 255, 255, 0.85);
-  --card-foreground: #0f172a;
-  
-  --border: #e2e8f0;
-  --input: #ffffff;
-
-  --radius: 1rem;
-  
-  --transition-speed: 0.3s;
-  --transition-bezier: cubic-bezier(0.16, 1, 0.3, 1);
+  color-scheme: light;
+  --bg: 224 100% 99%;
+  --bg-muted: 220 33% 97%;
+  --bg-elevated: 0 0% 100%;
+  --bg-glass: 0 0% 100% / 0.72;
+  --bg-dark: 220 54% 14%;
+  --bg-dark-elevated: 218 48% 18%;
+  --fg: 222 47% 14%;
+  --fg-muted: 217 18% 45%;
+  --fg-soft: 216 15% 58%;
+  --fg-on-dark: 210 40% 98%;
+  --brand: 217 79% 24%;
+  --brand-strong: 217 86% 18%;
+  --brand-soft: 214 100% 96%;
+  --accent: 45 100% 52%;
+  --accent-soft: 47 100% 94%;
+  --success: 160 84% 32%;
+  --success-soft: 152 68% 95%;
+  --danger: 353 78% 47%;
+  --danger-soft: 351 100% 97%;
+  --warning: 35 92% 50%;
+  --warning-soft: 42 100% 96%;
+  --border: 220 24% 90%;
+  --border-strong: 220 16% 82%;
+  --border-dark: 217 32% 28%;
+  --ring: 214 100% 56%;
+  --radius-xs: 0.75rem;
+  --radius-sm: 1rem;
+  --radius-md: 1.25rem;
+  --radius-lg: 1.75rem;
+  --radius-xl: 2rem;
+  --radius-2xl: 2.5rem;
+  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-sm: 0 10px 30px rgba(15, 23, 42, 0.05);
+  --shadow-md: 0 20px 44px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 28px 70px rgba(15, 23, 42, 0.12);
+  --shadow-brand: 0 24px 64px rgba(13, 44, 84, 0.22);
+  --shadow-accent: 0 24px 52px rgba(255, 208, 0, 0.18);
+  --ease-premium: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-soft: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-fast: 180ms;
+  --duration-base: 260ms;
+  --duration-slow: 420ms;
 }
 
 .dark {
-  --background: #020617;
-  --foreground: #f8fafc;
-  --card: rgba(15, 23, 42, 0.8);
-  --border: #1e293b;
-  --primary: #38bdf8;
-  --input: #0f172a;
+  color-scheme: dark;
+  --bg: 222 40% 8%;
+  --bg-muted: 220 34% 12%;
+  --bg-elevated: 223 33% 14%;
+  --bg-glass: 223 33% 14% / 0.78;
+  --bg-dark: 224 58% 7%;
+  --bg-dark-elevated: 220 44% 13%;
+  --fg: 210 40% 98%;
+  --fg-muted: 215 16% 76%;
+  --fg-soft: 215 15% 64%;
+  --fg-on-dark: 210 40% 98%;
+  --brand: 213 84% 61%;
+  --brand-strong: 214 89% 70%;
+  --brand-soft: 220 50% 17%;
+  --accent: 45 100% 58%;
+  --accent-soft: 45 66% 18%;
+  --success: 151 65% 48%;
+  --success-soft: 155 36% 15%;
+  --danger: 353 84% 61%;
+  --danger-soft: 353 34% 16%;
+  --warning: 39 96% 58%;
+  --warning-soft: 37 52% 17%;
+  --border: 217 21% 24%;
+  --border-strong: 217 19% 30%;
+  --border-dark: 217 21% 28%;
 }
 
-@layer base {
-  * { 
-    /* Use var directly to avoid 'unknown utility' errors during early compilation */
-    border-color: var(--border); 
-  }
-  
-  body { 
-    background-color: var(--background);
-    color: var(--foreground);
-    font-feature-settings: "rlig" 1, "calt" 1;
-    /* Subtle brand watermark background */
-    background-image: radial-gradient(at 0% 0%, rgba(13, 44, 84, 0.03) 0px, transparent 50%),
-                      radial-gradient(at 100% 0%, rgba(255, 215, 0, 0.02) 0px, transparent 50%);
-    @apply antialiased;
-  }
-
-  ::selection {
-    background-color: rgba(191, 219, 254, 0.5); /* blue-200/50 */
-    color: var(--primary);
-  }
+* { border-color: hsl(var(--border)); }
+html { scroll-behavior: smooth; }
+body {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top left, rgba(59, 130, 246, 0.09), transparent 24%),
+    radial-gradient(circle at top right, rgba(255, 208, 0, 0.08), transparent 18%),
+    linear-gradient(180deg, hsl(var(--bg)) 0%, hsl(var(--bg-muted)) 100%);
+  color: hsl(var(--fg));
 }
 
-@layer components {
-  /* High-end Surfaces */
-  .surface {
-    @apply bg-card backdrop-blur-xl border border-white/40 shadow-premium rounded-[2rem] transition-all duration-500;
+@layer utilities {
+  .app-shell { @apply mx-auto w-full max-w-[1760px] px-4 pb-16 pt-6 sm:px-6 lg:px-8; }
+  .premium-hero {
+    @apply relative overflow-hidden rounded-[2rem] border p-6 md:p-8;
+    background: linear-gradient(180deg, hsl(var(--bg-glass)), hsl(var(--bg-elevated) / 0.88));
+    box-shadow: var(--shadow-lg);
+    backdrop-filter: blur(20px);
   }
-  
-  .surface-hover {
-    @apply hover:shadow-elevated hover:-translate-y-1 active:translate-y-0 active:scale-[0.99];
+  .premium-card {
+    @apply relative overflow-hidden rounded-[1.75rem] border;
+    background: linear-gradient(180deg, hsl(var(--bg-elevated)), hsl(var(--bg-elevated) / 0.88));
+    box-shadow: var(--shadow-md);
+    backdrop-filter: blur(12px);
   }
-
-  /* Form Architecture */
-  .field-shell {
-    /* REMOVED 'group' as it cannot be @applied in v4 */
-    @apply flex flex-col gap-1.5;
-  }
-
-  .input-premium {
-    @apply w-full bg-white/60 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-semibold outline-none
-           transition-all duration-300 placeholder:text-slate-400 placeholder:font-normal
-           focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/5
-           disabled:opacity-50 disabled:bg-slate-100 disabled:cursor-not-allowed;
-  }
-
-  /* Enterprise Action Controls */
-  .btn {
-    @apply inline-flex items-center justify-center gap-2.5 px-7 py-4 rounded-2xl font-black uppercase tracking-[0.1em] text-[10px] 
-           transition-all duration-300 active:scale-95 disabled:opacity-50 disabled:pointer-events-none;
-  }
-
-  .btn-primary {
-    @apply bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:bg-slate-800 hover:shadow-primary/30;
-  }
-
-  .btn-secondary {
-    @apply bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300 hover:shadow-sm;
-  }
-
-  /* Status Data Indicators */
-  .chip {
-    @apply inline-flex items-center px-3.5 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest border;
-  }
-}
-
-/* Custom Refined Scrollbar */
-@utility elevated-scroll {
-  &::-webkit-scrollbar { width: 6px; }
-  &::-webkit-scrollbar-track { background: transparent; }
-  &::-webkit-scrollbar-thumb { 
-    background-color: #cbd5e1; 
-    border-radius: 9999px;
-    border: 1px solid transparent;
-    background-clip: content-box;
-  }
-  &::-webkit-scrollbar-thumb:hover { background-color: #94a3b8; }
-}
-
-/* Global Motion Foundations */
-.transition-premium {
-  transition: all 0.5s var(--transition-bezier);
-}
-
-/* Updated v4 animation syntax */
-.animate-fade-in {
-  @apply animate-in fade-in duration-500;
-}
-
-.animate-slide-up {
-  @apply animate-in fade-in slide-in-from-bottom-4 duration-700;
+  .premium-card-soft { @apply rounded-[1.5rem] border; background: hsl(var(--bg-elevated) / 0.76); box-shadow: var(--shadow-sm); }
+  .premium-card-dark { @apply relative overflow-hidden rounded-[1.9rem] border text-white; background: linear-gradient(180deg, hsl(var(--bg-dark-elevated)), hsl(var(--bg-dark))); box-shadow: var(--shadow-brand); }
+  .section-surface { @apply premium-card p-5 md:p-6 xl:p-7; }
+  .toolbar-surface { @apply premium-card-soft flex flex-wrap items-center gap-3 p-3 md:p-4; }
+  .metric-tile { @apply premium-card p-5 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg; }
+  .status-badge { @apply inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.16em]; }
+  .status-dot { @apply h-2 w-2 rounded-full; }
+  .status-blue { @apply status-badge text-sky-700 border-sky-200 bg-sky-50; }
+  .status-amber { @apply status-badge text-amber-700 border-amber-200 bg-amber-50; }
+  .status-green { @apply status-badge text-emerald-700 border-emerald-200 bg-emerald-50; }
+  .status-rose { @apply status-badge text-rose-700 border-rose-200 bg-rose-50; }
+  .field-wrap { @apply relative rounded-[1.2rem] border bg-white/90 transition-all focus-within:ring-4 focus-within:ring-blue-500/10 focus-within:border-blue-500; }
+  .field-label { @apply mb-2 block text-[11px] font-black uppercase tracking-[0.22em] text-slate-400; }
+  .input-premium { @apply w-full bg-transparent px-4 py-3.5 text-sm font-semibold outline-none; }
+  .btn { @apply inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-xs font-black uppercase tracking-[0.18em] transition-all active:scale-95; }
+  .btn-primary { @apply btn text-white shadow-lg; background: linear-gradient(180deg, hsl(var(--brand)), hsl(var(--brand-strong))); }
+  .btn-secondary { @apply btn border border-slate-200 bg-white text-slate-700; }
+  .btn-accent { @apply btn text-blue-900 shadow-md; background: linear-gradient(180deg, hsl(var(--accent)), #f59e0b); }
+  .panel-title { @apply text-lg font-black tracking-tight text-slate-800; }
+  .panel-subtitle { @apply mt-2 text-sm font-medium text-slate-500 leading-relaxed; }
+  .kicker { @apply inline-flex items-center gap-2 rounded-full border border-slate-100 bg-white/80 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400; }
+  .table-shell { @apply overflow-hidden rounded-[1.5rem] border border-slate-100 bg-white shadow-sm; }
+  .table-head { @apply grid gap-4 border-b bg-slate-50/50 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-400; }
+  .table-row { @apply grid gap-4 border-b border-slate-50 px-4 py-4 text-sm font-semibold last:border-0; }
 }
