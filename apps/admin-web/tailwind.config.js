@@ -1,19 +1,30 @@
 /** @type {import('tailwindcss').Config} */
-module.exports = {
+export default {
   content: [
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
+    "./pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
-    "../../lib/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/**/*.{js,ts,jsx,tsx,mdx}",
   ],
   theme: {
     extend: {
       colors: {
-        slate: { 950: '#020617' },
+        brand: {
+          DEFAULT: "#0d2c54",
+          strong: "#081c35",
+          soft: "#f0f4f9",
+        },
+        accent: {
+          DEFAULT: "#ffd700",
+          soft: "#fffbeb",
+        }
       },
-      backgroundImage: {
-        'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
-      },
+      borderRadius: {
+        'xl': '1rem',
+        '2xl': '1.5rem',
+        '3xl': '2rem',
+      }
     },
   },
   plugins: [],
-};
+}
