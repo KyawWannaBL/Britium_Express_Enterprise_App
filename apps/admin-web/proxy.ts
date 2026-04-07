@@ -1,11 +1,7 @@
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-/**
- * Proxy-based middleware logic for Britium Express Enterprise.
- * Updated for ESM compatibility and to resolve Restriction blocks.
- */
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   let response = NextResponse.next({
     request: {
       headers: request.headers,
@@ -17,70 +13,52 @@ export async function proxy(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get(name: string) {
-          return request.cookies.get(name)?.value
+        getAll() {
+          return request.cookies.getAll()
         },
-        set(name: string, value: string, options: CookieOptions) {
-          request.cookies.set({ name, value, ...options })
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
           response = NextResponse.next({
-            request: { headers: request.headers },
+            request,
           })
-          response.cookies.set({ name, value, ...options })
-        },
-        remove(name: string, options: CookieOptions) {
-          request.cookies.set({ name, value: '', ...options })
-          response = NextResponse.next({
-            request: { headers: request.headers },
-          })
-          response.cookies.set({ name, value: '', ...options })
+          cookiesToSet.forEach(({ name, value, options }) =>
+            response.cookies.set(name, value, options)
+          )
         },
       },
     }
   )
 
-  // Critical: Refresh session to ensure latest roles/permissions are available
+  // Refresh session if expired - required for Server Components
   const { data: { user } } = await supabase.auth.getUser()
-  const pathname = request.nextUrl.pathname
 
-  // 1. If user is logged in and tries to access /auth routes, send them to dashboard
-  if (user && pathname.startsWith('/auth') && !pathname.includes('must-change-password')) {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
-  }
-
-  // 2. Allow Public Routes (No Auth Required)
-  if (pathname.startsWith('/auth') || pathname.startsWith('/customer/portal') || pathname === '/') {
-    return response
-  }
-
-  // 3. Protect all other routes - Redirect unauthenticated users to login
-  if (!user) {
+  // 1. Protect Internal Routes
+  if (request.nextUrl.pathname.startsWith('/internal') && !user) {
     return NextResponse.redirect(new URL('/auth/login', request.url))
   }
 
-  // 4. Bypass Restrictions for Super Admins
-  // This logic prevents the "Access Restricted" screen seen in screenshots image_fa92df.png
-  // for high-level admin accounts during the transition phase.
-  const isSuperAdmin = user.app_metadata?.role === 'SUPER_ADMIN' || user.email?.includes('admin');
-  
-  if (isSuperAdmin) {
-    return response;
+  // 2. Protect Admin Turbo Node
+  if (request.nextUrl.pathname.startsWith('/data-entry-turbo') && !user) {
+    return NextResponse.redirect(new URL('/auth/login', request.url))
+  }
+
+  // 3. Redirect logged-in users away from Auth pages
+  if (request.nextUrl.pathname.startsWith('/auth') && user) {
+    return NextResponse.redirect(new URL('/internal/create-delivery', request.url))
   }
 
   return response
 }
 
-// Ensure the default export is present for Next.js to recognize the proxy module
-export default proxy;
-
 export const config = {
   matcher: [
     /*
      * Match all request paths except for the ones starting with:
-     * - api (API routes)
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
+     * Feel free to modify this pattern to include more paths.
      */
-    '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
